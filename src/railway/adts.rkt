@@ -137,9 +137,6 @@
       position)
 
     (define/public (set-position! pos)
-      (if (= pos 1)
-        (set! track position-1)
-        (set! track position-2))
       (set! position pos))
 
     (define (current)
@@ -196,7 +193,10 @@
     (define/public (get-location)
       current-track)
 
+    (define on-d-block? #f)
+
     (define/public (set-location! new-track (new-prev-track current-track))
+      (set! on-d-block? (d-block? new-track))
       (set! current-track new-track)
       (set! previous-track new-prev-track))
 
@@ -211,5 +211,13 @@
 
     (define/public (change-direction!)
       (set! previous-track (send current-track from previous-track))
-      (set! direction (- direction)))))
+      (set! direction (- direction)))
+
+    (define/public (get-d-block)
+      (if on-d-block?
+        current-track
+        #f))
+
+    (define/public (left-d-block!)
+      (set! on-d-block? #f))))
 
