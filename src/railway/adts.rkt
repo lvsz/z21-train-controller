@@ -185,7 +185,7 @@
 
 (define loco%
   (class object%
-    (init-field id location)
+    (init-field id previous-track current-track)
     (field (speed 0)
            (direction 1))
     (super-new)
@@ -194,10 +194,11 @@
       id)
 
     (define/public (get-location)
-      location)
+      current-track)
 
-    (define/public (set-location! new-track)
-      (set! location new-track))
+    (define/public (set-location! new-track (new-prev-track current-track))
+      (set! current-track new-track)
+      (set! previous-track new-prev-track))
 
     (define/public (get-speed)
       speed)
@@ -209,5 +210,6 @@
       direction)
 
     (define/public (change-direction!)
+      (set! previous-track (send current-track from previous-track))
       (set! direction (- direction)))))
 

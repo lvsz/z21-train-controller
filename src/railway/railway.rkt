@@ -72,8 +72,8 @@
     (let ((switch (make-object switch% id t1 t2)))
       (hash-set! tracks id switch)
       (hash-set! switches id switch)))
-  (define (new-loco id track)
-    (hash-set! locos id (make-object loco% id track)))
+  (define (new-loco id track-1 track-2)
+    (hash-set! locos id (make-object loco% id track-1 track-2)))
 
   (define read-id string->symbol)
   (define read-number string->number)
