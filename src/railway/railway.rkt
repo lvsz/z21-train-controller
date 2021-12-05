@@ -46,8 +46,8 @@
     (define/public (get-locos)
       (hash-values locos))
 
-    (define/public (add-loco id location)
-      (hash-set! (locos id (make-object loco% id location))))
+    (define/public (add-loco id prev-track curr-track)
+      (hash-set! locos id (make-object loco% id prev-track curr-track)))
     (define/public (remove-loco id)
       (hash-remove! locos id))
     (construct setup nodes tracks d-blocks switches locos)))

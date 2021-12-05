@@ -33,15 +33,17 @@
         (hash-set! loco-speed-listeners loco-id (list fn))))
 
 
+    (define (get-id obj)
+      (send obj get-id))
     (define/public (get-loco-ids)
-      (send railway get-loco-ids))
+      (map get-id (send railway get-locos)))
     (define/public (get-switch-ids)
-      (send railway get-switch-ids))
+      (map get-id (send railway get-switches)))
     (define/public (get-d-block-ids)
-      (send railway get-d-block-ids))
+      (map get-id (send railway get-d-blocks)))
 
     (define/public (get-switch-position id)
-      (send infrabel get-switch-position id))
+      (send (send railway get-switch id) get-position))
     (define/public (set-switch-position id int)
       (send (send railway get-switch id) set-position int))
 
@@ -55,7 +57,7 @@
       (send infrabel set-loco-speed id
             (* (send (get-loco id) get-direction) speed)))
     (define/public (change-loco-direction id)
-      (send infrabel change-loco-direction id)
+      (send infrabel set-loco-speed id (- (send infrabel get-loco-speed id)))
       (send (get-loco id) change-direction))
 
     ;; nmbs generates a list of viable starting spots
@@ -66,7 +68,10 @@
              (prev-id (starting-spot-previous spot))
              (loco-id (gensym "L")))
         (send infrabel add-loco loco-id prev-id curr-id)
-        (send railway add-loco loco-id prev-id curr-id)
+        (send railway add-loco
+              loco-id
+              (send railway get-track prev-id)
+              (send railway get-track curr-id))
         loco-id))
 
     (define/public (remove-loco loco-id)
@@ -105,7 +110,7 @@
 
     (define update-thread #f)
 
-    (define/public (start setup-id)
+    (define/public (start (setup-id #f))
       (unless setup-id
         (new setup-window%
              (setups setup-ids)
@@ -113,11 +118,14 @@
                          (set! setup-id id)))))
       (let loop ()
         (if setup-id
-          (new window% (nmbs this) (atexit (lambda () (send nmbs stop))))
+          (begin (set! railway (make-object railway% setup-id))
+                 (send infrabel initialize setup-id)
+                 (set! starting-spots (find-starting-spots infrabel railway))
+                 (new window%
+                      (nmbs this)
+                      (atexit (lambda () (send this stop)))))
           (begin (sleep 0.5)
                  (loop))))
-      (set! railway (make-object railway% setup-id))
-      (send infrabel initialize setup-id)
       (send infrabel start)
       ;; add callback to switches to notify listeners & infrabel when changed
       (for ((switch (in-list (send railway get-switches))))
@@ -130,7 +138,6 @@
                                 (fn id pos))
                               switch-listeners)
                     (send infrabel set-switch-position id pos))))))
-      (set! starting-spots (find-starting-spots infrabel railway))
       (sleep 0.5)
       (set! update-thread (thread get-updates)))))
 
@@ -145,7 +152,9 @@
   (let* ((db-ids (send infrabel get-d-block-ids))
          (switch-ids (send infrabel get-switch-ids))
          (infrabel-ids (append db-ids switch-ids))
-         (spots (for/list ((track-id (send railway get-d-block-ids)))
+         (spots (for/list ((track-id
+                             (in-list (map (lambda (db) (send db get-id))
+                                           (send railway get-d-blocks)))))
                   ; first make sure there's a match
                   (and (memq track-id infrabel-ids)
                        (let* ((track (send railway get-track track-id))
@@ -162,5 +171,4 @@
     (for/hash ((spot (in-list spots))
                #:when spot)
       (values (car spot) (cdr spot)))))
-
 

@@ -45,8 +45,8 @@
       (set! running #t)
       (thread (lambda ()
                 (let loop ()
-                  (for ((loco (in-list (send railway get-loco-ids))))
-                    (get-loco-d-block loco))
+                  (for ((loco (in-list (send railway get-locos))))
+                    (get-loco-d-block (send loco get-id)))
                   (sleep 1)
                   (when running (loop))))))
 
@@ -54,14 +54,64 @@
       (set! running #f)
       (ext:stop-simulator))
 
+    (define/public (add-loco id prev curr)
+      (define prev-track (get-track prev))
+      (define curr-track (get-track curr))
+      (ext:add-loco id prev curr)
+      (send railway add-loco id prev-track curr-track)
+      (send curr-track occupy))
+
+    (define/public (remove-loco id)
+      (let ((d-block (send (send railway get-loco id) get-d-block)))
+        (when d-block (send d-block clear)))
+      (ext:remove-loco id)
+      (send railway remove-loco id))
+
+    (define/public (get-loco-speed id)
+      (ext:get-loco-speed id))
+
     (define/public (set-loco-speed id speed)
-      (ext:set-loco-speed id speed))
+      (ext:set-loco-speed! id speed))
+
+    (define/public (get-loco-d-block loco-id)
+      (let* ((new-db-id (ext:get-loco-d-block loco-id))
+             (new-db (and new-db-id (get-track new-db-id)))
+             (loco (send railway get-loco loco-id))
+             (old-db (send loco get-d-block)))
+        (cond
+          ; nothing changed
+          ((eq? new-db old-db)
+           (void))
+          ; loco is on a detection block but wasn't before
+          ((and new-db (not old-db))
+           (send new-db occupy)
+           (send loco update-location new-db))
+          ; loco is on a new detection block
+          ((and new-db old-db)
+           (send old-db clear)
+           (send new-db occupy)
+           (send loco update-location new-db))
+          ; else loco left a detection block
+          (else
+           (send old-db clear)
+           (send loco left-d-block)))
+        new-db-id))
+
+    (define/public (get-d-block-ids)
+      (ext:get-d-block-ids))
+    (define/public (get-switch-ids)
+      (ext:get-switch-ids))
+    (define/public (get-switch-position id)
+      (ext:get-switch-position id))
 
     (define/public (set-switch-position id position)
-      (send (get-track id) (set-position position))
+      (send (get-track id) set-position position)
       (ext:set-switch-position! id position))
 
     (define/public (get-d-block-statuses)
       (for/list ((d-block (in-list (send railway get-d-blocks))))
-        (cons (send d-block get-id) (send d-block get-status))))))
+        (cons (send d-block get-id) (send d-block get-status))))
+
+    (define (get-track id)
+      (send railway get-track id))))
 

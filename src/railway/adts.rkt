@@ -100,7 +100,7 @@
         (set-field! status d-block 'orange)))
 
     (define/public (clear)
-      (if (for/or ((d-block (in-list (connected-blocks))))
+      (if (for/or ((d-block (in-list connected-blocks)))
             (eq? (get-field status d-block) 'red))
         (set! status 'orange)
         (begin (set! status 'green)
@@ -130,7 +130,7 @@
     (inherit-field id)
 
     (update-nodes! position-1 this)
-    (update-nodes! position-1 this)
+    (update-nodes! position-2 this)
 
     (define position 1)
 
@@ -138,7 +138,8 @@
       position)
 
     (define/public (set-position pos)
-      (set! position pos))
+      (set! position pos)
+      (callback))
 
     (define (current)
       (if (= position 1)
@@ -179,7 +180,11 @@
       (send (current) from track))
 
     (define/override (get-length)
-      (send (current) get-length))))
+      (send (current) get-length))
+
+    (define callback void)
+    (define/public (set-callback proc)
+      (set! callback proc))))
 
 (define loco%
   (class object%
@@ -196,7 +201,7 @@
 
     (define on-d-block? #f)
 
-    (define/public (set-location new-track (new-prev-track current-track))
+    (define/public (update-location new-track (new-prev-track current-track))
       (set! on-d-block? (d-block? new-track))
       (set! current-track new-track)
       (set! previous-track new-prev-track))

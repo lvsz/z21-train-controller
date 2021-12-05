@@ -126,7 +126,7 @@
                  (when (>= idx 0)
                    (let ((id (send nmbs add-loco (list-ref starting-spots idx))))
                      ; updates loco list & selection menu
-                     (add-loco-to-menu id)
+                     (add-loco-to-menu! id)
                      ; add listener for speed updates
                      (send nmbs add-loco-speed-listener id (mk-listener id))
                      ; set new loco to active loco
@@ -240,8 +240,8 @@
                                   (lambda (button evt)
                                     (let ((pos (send nmbs get-switch-position id)))
                                       (if (= pos 1)
-                                        (send nmbs set-switch-position 2 id)
-                                        (send nmbs set-switch-position 1 id))))))))
+                                        (send nmbs set-switch-position id 2)
+                                        (send nmbs set-switch-position id 1))))))))
                 (sort (send nmbs get-switch-ids) id<?))))
 
 (define db-light%
