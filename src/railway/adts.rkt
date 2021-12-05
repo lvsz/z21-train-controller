@@ -23,6 +23,9 @@
 (define (switch? track)
   (is-a? track switch%))
 
+
+;; Stores the connection between 2 tracks,
+;; or signifies the end of one,
 (define node%
   (class object%
     (init-field id)
@@ -43,6 +46,8 @@
     (define/public (remove-track track)
       (set! tracks (remq track tracks)))))
 
+;; Most basic piece of a railway, consists of 2 nodes and a length,
+;; length is used to calculate routes.
 (define track%
   (class object%
     (init-field id node-1 node-2 length)
@@ -64,12 +69,17 @@
       (or (eq? (get-field node-1 track) node)
           (eq? (get-field node-2 track) node)))
 
+    ; TODO: make it work for tracks that are part
+    ;       of a switch
     (define/public (from track)
       (match (remq track (get-connected-tracks))
         ((list)    #f)
         ((list to) to)
-        (_ (error "not connected"))))))
+        (_         #f)))))
 
+
+;; A detection block is able to tell whether a train is located on it,
+;; or on a neighbouring detection block.
 (define d-block%
   (class track%
     (init ((_id id))
@@ -108,17 +118,9 @@
                      #:unless (eq? (get-field status d-block) 'green))
                  (send d-block clear)))))))
 
-(define (update-nodes! old-track new-track)
-  (if (switch? old-track)
-    (begin (update-nodes! (get-field position-1 old-track) new-track)
-           (update-nodes! (get-field position-2 old-track) new-track))
-    (let ((node-1 (get-field node-1 old-track))
-          (node-2 (get-field node-2 old-track)))
-      (send node-1 remove-track old-track)
-      (send node-1 add-track    new-track)
-      (send node-2 remove-track old-track)
-      (send node-2 add-track    new-track))))
 
+;; A switch is a compound track, it has 2 position it can switch between,
+;; it is possible for one or both of those positions to be switches as well
 (define switch%
   (class track%
     (init ((_id id)))
@@ -129,6 +131,8 @@
                        (get-field length position-1))
     (inherit-field id)
 
+    ; Removes tracks from their nodes, so that each node
+    ; only lists up to two connected tracks
     (update-nodes! position-1 this)
     (update-nodes! position-2 this)
 
@@ -162,30 +166,20 @@
     (define/public (get-tracks)
       tracks)
 
-   ; (define/public (set-track track)
-   ;   (cond ((eq? track position-1)
-   ;          (set! position position-1))
-   ;         ((eq? track position-2)
-   ;          (set! position position-2))
-   ;         ((and (switch? position-1)
-   ;               (memq track (send position-1 get-positions)))
-   ;          (set! position position-1)
-   ;          (send position-1 set-position! track))
-   ;         ((and (switch? position-2)
-   ;               (memq track (send position-2 get-positions)))
-   ;          (set! position position-2)
-   ;          (send position-2 set-position! track))))
-
     (define/override (from track)
       (send (current) from track))
 
     (define/override (get-length)
       (send (current) get-length))
 
+    ; A function that get called every time the switch changes position
     (define callback void)
     (define/public (set-callback proc)
       (set! callback proc))))
 
+
+;; A locomotive, need two tracks to places on a railway in order
+;; to determine its initial direction
 (define loco%
   (class object%
     (init-field id previous-track current-track)
@@ -226,4 +220,22 @@
 
     (define/public (left-d-block)
       (set! on-d-block? #f))))
+
+
+; Helper function that gets all nodes related to a track,
+; mostly useful when dealing with switches
+(define (get-nodes track)
+  (if (switch? track)
+    (append (get-nodes (get-field position-1 track))
+            (get-nodes (get-field position-2 track)))
+    (list (get-field node-1 track)
+          (get-field node-2 track))))
+
+
+; Used by switch% to clear node%s of its subtracks
+(define (update-nodes! old-track new-track)
+  (let ((nodes (get-nodes old-track)))
+    (for ((node (in-list nodes)))
+      (send node remove-track old-track)
+      (send node add-track new-track))))
 

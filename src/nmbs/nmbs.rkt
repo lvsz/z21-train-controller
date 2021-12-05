@@ -14,18 +14,18 @@
 
     (define railway #f)
 
-    ;; list of functions to be called when a switch changes
+    ; List of functions to be called when a switch changes
     (define switch-listeners '())
     (define/public (add-switch-listener fn)
       (set! switch-listeners (cons fn switch-listeners)))
 
-    ;; list of functions to be called when a detection block changes
+    ; List of functions to be called when a detection block changes
     (define d-block-listeners '())
     (define/public (add-d-block-listener fn)
       (set! d-block-listeners
             (cons fn d-block-listeners)))
 
-    ;; hashmap of lists of functions called when a loco changes speed
+    ; Hashmap of lists of functions called when a loco changes speed
     (define loco-speed-listeners (make-hash))
     (define/public (add-loco-speed-listener loco-id fn)
       (if (hash-has-key? loco-speed-listeners loco-id)
@@ -51,6 +51,8 @@
       (send railway get-loco id))
     (define/public (get-loco-speed id)
       (abs (send infrabel get-loco-speed id)))
+
+    ; Change the speed, notifying any listeners
     (define/public (set-loco-speed id speed)
       (for ((notify (in-list (hash-ref loco-speed-listeners id))))
         (notify speed))
@@ -60,8 +62,8 @@
       (send infrabel set-loco-speed id (- (send infrabel get-loco-speed id)))
       (send (get-loco id) change-direction))
 
-    ;; nmbs generates a list of viable starting spots
-    ;; to add new locomotives
+    ; Nmbs generates a list of viable starting spots
+    ; to add new locomotives
     (define/public (add-loco spot-id)
       (let* ((spot (hash-ref starting-spots spot-id))
              (curr-id (starting-spot-current spot))
@@ -84,16 +86,16 @@
     (define/public (get-loco-d-block id)
       (send infrabel get-loco-d-block id))
 
-    ;; get hash of spots where a new loco can be added,
-    ;; to be a valid spot, a detection block is needed whose local id and
-    ;; that of a connected segment match those imported through infrabel
+    ; Get hash of spots where a new loco can be added,
+    ; to be a valid spot, a detection block is needed whose local id and
+    ; that of a connected segment match those imported through infrabel.
     (define starting-spots #f)
     (define/public (get-starting-spots)
       (if starting-spots
         (hash-keys starting-spots)
         '()))
 
-    ;; update detection block statuses & loco speeds on regular intervals
+    ; Update detection block statuses & loco speeds on regular intervals.
     (define (get-updates)
       (sleep 1)
       (for ((db (send infrabel get-d-block-statuses)))
@@ -110,36 +112,43 @@
 
     (define update-thread #f)
 
+    ; Calling this methid will initialise the nmbs% instance
+    ; and then start up the application, including GUI.
     (define/public (start (setup-id #f))
-      (unless setup-id
-        (new setup-window%
-             (setups setup-ids)
-             (callback (lambda (id)
-                         (set! setup-id id)))))
-      (let loop ()
-        (if setup-id
-          (begin (set! railway (make-object railway% setup-id))
-                 (send infrabel initialize setup-id)
-                 (set! starting-spots (find-starting-spots infrabel railway))
-                 (new window%
-                      (nmbs this)
-                      (atexit (lambda () (send this stop)))))
-          (begin (sleep 0.5)
-                 (loop))))
-      (send infrabel start)
-      ;; add callback to switches to notify listeners & infrabel when changed
-      (for ((switch (in-list (send railway get-switches))))
-        (let ((id (send switch get-id)))
-          (send switch
-                set-callback
-                (lambda ()
-                  (let ((pos (send switch get-position)))
-                    (for-each (lambda (fn)
-                                (fn id pos))
-                              switch-listeners)
-                    (send infrabel set-switch-position id pos))))))
-      (sleep 0.5)
-      (set! update-thread (thread get-updates)))))
+      (define (_start)
+        (let loop ()
+          (if setup-id
+            (begin (set! railway (make-object railway% setup-id))
+                   (send infrabel initialize setup-id)
+                   (set! starting-spots (find-starting-spots infrabel railway))
+                   (new window%
+                        (nmbs this)
+                        (atexit (lambda () (send this stop)))))
+            (begin (sleep 0.1)
+                   (loop))))
+        (send infrabel start)
+        ;; add callback to switches to notify listeners & infrabel when changed
+        (for ((switch (in-list (send railway get-switches))))
+          (let ((id (send switch get-id)))
+            (send switch
+                  set-callback
+                  (lambda ()
+                    (let ((pos (send switch get-position)))
+                      (for-each (lambda (fn)
+                                  (fn id pos))
+                                switch-listeners)
+                      (send infrabel set-switch-position id pos))))))
+        (sleep 0.5)
+        (set! update-thread (thread get-updates)))
+
+      ; If there's no setup yet, open the setup window.
+      (void (if setup-id
+              (_start)
+              (new setup-window%
+                   (setups setup-ids)
+                   (callback (lambda (id)
+                               (set! setup-id id)
+                               (_start)))))))))
 
 
 ;; simple struct that defines a spot where a locomotive can be added

@@ -13,6 +13,10 @@
          "setup.rkt")
 
 
+;; An instance of the railway% class is can load a chosen railway setup
+;; and maintain its state. Both nmbs% and infrabel% use this class
+;; to keep track of the railway. The setup-id field takes one of the
+;; files names found in resources/setups as a symbol.
 (define railway%
   (class object%
     (init-field setup-id)
@@ -52,6 +56,9 @@
       (hash-remove! locos id))
     (construct setup nodes tracks d-blocks switches locos)))
 
+
+;; Using a given setup, this function reads the file, evaluating it line by
+;; line, creating objects and storing them in the given hash-maps.
 (define (construct setup nodes tracks d-blocks switches locos)
   (define (new-node id)
     (if (hash-has-key? nodes id)
