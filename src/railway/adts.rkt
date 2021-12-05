@@ -131,43 +131,57 @@
     (update-nodes! position-1 this)
     (update-nodes! position-1 this)
 
-    (define position position-1)
+    (define position 1)
 
     (define/public (get-position)
-      (if (switch? position)
-        (send position get-position)
-        position))
+      position)
 
-    (define positions
+    (define/public (set-position! pos)
+      (if (= pos 1)
+        (set! track position-1)
+        (set! track position-2))
+      (set! position pos))
+
+    (define (current)
+      (if (= position 1)
+        position-1
+        position-2))
+
+    (define/public (get-track)
+      (if (switch? (current))
+        (send (current) get-position)
+        (current)))
+
+    (define tracks
       (append (if (switch? position-1)
-                (send position-1 get-positions)
+                (send position-1 get-tracks)
                 (list position-1))
               (if (switch? position-2)
-                (send position-2 get-positions)
+                (send position-2 get-track)
                 (list position-2))))
 
-    (define/public (get-positions)
-      positions)
+    (define/public (get-tracks)
+      tracks)
 
-    (define/public (set-position! track)
-      (cond ((eq? track position-1)
-             (set! position position-1))
-            ((eq? track position-2)
-             (set! position position-2))
-            ((and (switch? position-1)
-                  (memq track (send position-1 get-positions)))
-             (set! position position-1)
-             (send position-1 set-position! track))
-            ((and (switch? position-2)
-                  (memq track (send position-2 get-positions)))
-             (set! position position-2)
-             (send position-2 set-position! track))))
+   ; (define/public (set-track! track)
+   ;   (cond ((eq? track position-1)
+   ;          (set! position position-1))
+   ;         ((eq? track position-2)
+   ;          (set! position position-2))
+   ;         ((and (switch? position-1)
+   ;               (memq track (send position-1 get-positions)))
+   ;          (set! position position-1)
+   ;          (send position-1 set-position! track))
+   ;         ((and (switch? position-2)
+   ;               (memq track (send position-2 get-positions)))
+   ;          (set! position position-2)
+   ;          (send position-2 set-position! track))))
 
     (define/override (from track)
-      (send (get-position) from track))
+      (send (current) from track))
 
     (define/override (get-length)
-      (send (get-position) get-length))))
+      (send (current) get-length))))
 
 (define loco%
   (class object%
