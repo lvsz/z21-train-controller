@@ -1,9 +1,5 @@
 #lang racket/base
 
-(require racket/class
-         racket/list
-         racket/match)
-
 (provide node%
          track%
          d-block%
@@ -12,6 +8,11 @@
          track?
          d-block?
          switch?)
+
+(require racket/class
+         racket/list
+         racket/match)
+
 
 (define (track? track)
   (is-a? track track%))
@@ -35,19 +36,19 @@
     (define/public (get-tracks)
       tracks)
 
-    (define/public (add-track! track)
+    (define/public (add-track track)
       (unless (memq track tracks)
         (set! tracks (cons track tracks))))
 
-    (define/public (remove-track! track)
+    (define/public (remove-track track)
       (set! tracks (remq track tracks)))))
 
 (define track%
   (class object%
     (init-field id node-1 node-2 length)
     (super-new)
-    (send node-1 add-track! this)
-    (send node-2 add-track! this)
+    (send node-1 add-track this)
+    (send node-2 add-track this)
 
     (define/public (get-id)
       id)
@@ -83,29 +84,29 @@
     (define connected-blocks
       (for/list ((track (in-list (get-connected-tracks)))
                  #:when (d-block? track))
-        (send track connect-block! this)
+        (send track connect-block this)
         track))
 
-    (define/public (connect-block! d-block)
+    (define/public (connect-block d-block)
       (set! connected-blocks (cons d-block connected-blocks)))
 
     (define/public (get-status)
       status)
 
-    (define/public (occupy!)
+    (define/public (occupy)
       (set! status 'red)
       (for ((d-block (in-list connected-blocks))
             #:when (eq? (get-field status d-block) 'green))
         (set-field! status d-block 'orange)))
 
-    (define/public (clear!)
+    (define/public (clear)
       (if (for/or ((d-block (in-list (connected-blocks))))
             (eq? (get-field status d-block) 'red))
         (set! status 'orange)
         (begin (set! status 'green)
                (for ((d-block (in-list connected-blocks))
                      #:unless (eq? (get-field status d-block) 'green))
-                 (send d-block clear!)))))))
+                 (send d-block clear)))))))
 
 (define (update-nodes! old-track new-track)
   (if (switch? old-track)
@@ -113,10 +114,10 @@
            (update-nodes! (get-field position-2 old-track) new-track))
     (let ((node-1 (get-field node-1 old-track))
           (node-2 (get-field node-2 old-track)))
-      (send node-1 remove-track! old-track)
-      (send node-1 add-track!    new-track)
-      (send node-2 remove-track! old-track)
-      (send node-2 add-track!    new-track))))
+      (send node-1 remove-track old-track)
+      (send node-1 add-track    new-track)
+      (send node-2 remove-track old-track)
+      (send node-2 add-track    new-track))))
 
 (define switch%
   (class track%
@@ -136,7 +137,7 @@
     (define/public (get-position)
       position)
 
-    (define/public (set-position! pos)
+    (define/public (set-position pos)
       (set! position pos))
 
     (define (current)
@@ -160,7 +161,7 @@
     (define/public (get-tracks)
       tracks)
 
-   ; (define/public (set-track! track)
+   ; (define/public (set-track track)
    ;   (cond ((eq? track position-1)
    ;          (set! position position-1))
    ;         ((eq? track position-2)
@@ -195,7 +196,7 @@
 
     (define on-d-block? #f)
 
-    (define/public (set-location! new-track (new-prev-track current-track))
+    (define/public (set-location new-track (new-prev-track current-track))
       (set! on-d-block? (d-block? new-track))
       (set! current-track new-track)
       (set! previous-track new-prev-track))
@@ -203,13 +204,13 @@
     (define/public (get-speed)
       speed)
 
-    (define/public (set-speed! new-speed)
+    (define/public (set-speed new-speed)
       (set! speed new-speed))
 
     (define/public (get-direction)
       direction)
 
-    (define/public (change-direction!)
+    (define/public (change-direction)
       (set! previous-track (send current-track from previous-track))
       (set! direction (- direction)))
 
@@ -218,6 +219,6 @@
         current-track
         #f))
 
-    (define/public (left-d-block!)
+    (define/public (left-d-block)
       (set! on-d-block? #f))))
 

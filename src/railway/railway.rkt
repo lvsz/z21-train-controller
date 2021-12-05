@@ -1,16 +1,17 @@
 #lang racket/base
 
-(require racket/class
-         racket/list
-         "adts.rkt"
-         "setup.rkt")
 
 (provide railway%
          track?
          d-block?
          switch?
-         setup-ids
-         )
+         setup-ids)
+
+(require racket/class
+         racket/list
+         "adts.rkt"
+         "setup.rkt")
+
 
 (define railway%
   (class object%
@@ -45,9 +46,9 @@
     (define/public (get-locos)
       (hash-values locos))
 
-    (define/public (add-loco! id location)
+    (define/public (add-loco id location)
       (hash-set! (locos id (make-object loco% id location))))
-    (define/public (remove-loco! id)
+    (define/public (remove-loco id)
       (hash-remove! locos id))
     (construct setup nodes tracks d-blocks switches locos)))
 
@@ -65,10 +66,6 @@
       (hash-set! tracks id d-block)
       (hash-set! d-blocks id d-block)))
   (define (new-switch id t1 t2)
-    (when (hash-has-key? switches (send t1 get-id))
-      (hash-remove! switches (send t1 get-id)))
-    (when (hash-has-key? switches (send t2 get-id))
-      (hash-remove! switches (send t2 get-id)))
     (let ((switch (make-object switch% id t1 t2)))
       (hash-set! tracks id switch)
       (hash-set! switches id switch)))
