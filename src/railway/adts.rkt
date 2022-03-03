@@ -126,6 +126,23 @@
                        (get-field node-2 position-1)
                        (get-field length position-1))
     (inherit-field id)
+    (field (_set-position (lambda (pos)
+                            (set! position pos)
+                            (callback))))
+
+    ;; If this switch contains one or more switches, its position needs to
+    ;; align with any of its sub-switches whenever their position gets changed
+    (define (automate-3+way track super-pos)
+      (let ((old-proc (get-field _set-position track)))
+        (set-field! _set-position
+                    track
+                    (lambda (sub-pos)
+                      (_set-position super-pos)
+                      (old-proc sub-pos)))))
+    (when (switch? position-1)
+      (automate-3+way position-1 1))
+    (when (switch? position-2)
+      (automate-3+way position-2 2))
 
     ; Removes tracks from their nodes, so that each node
     ; only lists up to two connected tracks
@@ -138,8 +155,7 @@
       position)
 
     (define/public (set-position pos)
-      (set! position pos)
-      (callback))
+      (_set-position pos))
 
     (define (current)
       (if (= position 1)
@@ -169,8 +185,11 @@
       (send (current) get-length))
 
     ; A function that get called every time the switch changes position
+    ;(define callback-proc void)
     (define callback void)
+    ;(define (callback) (callback-proc))
     (define/public (set-callback proc)
+      ;(set! callback-proc proc))))
       (set! callback proc))))
 
 
