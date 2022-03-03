@@ -12,7 +12,7 @@
   (define nmbs
     (new nmbs% (infrabel infrabel)))
 
-  (send nmbs start ))
+  (send nmbs start))
 
 (main)
 

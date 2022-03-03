@@ -73,29 +73,31 @@
     (define/public (set-loco-speed id speed)
       (ext:set-loco-speed! id speed))
 
+    ; This procedure keeps track of a loco's movement by
+    ; comparing the detection blocks it has traversed.
     (define/public (get-loco-d-block loco-id)
-      (let* ((new-db-id (ext:get-loco-d-block loco-id))
-             (new-db (and new-db-id (get-track new-db-id)))
+      (let* ((new-d-block-id (ext:get-loco-d-block loco-id))
+             (new-d-block (and new-d-block-id (get-track new-d-block-id)))
              (loco (send railway get-loco loco-id))
              (old-db (send loco get-d-block)))
         (cond
-          ; nothing changed
-          ((eq? new-db old-db)
+          ; Nothing changed
+          ((eq? new-d-block old-db)
            (void))
-          ; loco is on a detection block but wasn't before
-          ((and new-db (not old-db))
-           (send new-db occupy)
-           (send loco update-location new-db))
-          ; loco is on a new detection block
-          ((and new-db old-db)
+          ; Loco is on a detection block but wasn't before
+          ((and new-d-block (not old-db))
+           (send new-d-block occupy)
+           (send loco update-location new-d-block))
+          ; Loco is on a new detection block
+          ((and new-d-block old-db)
            (send old-db clear)
-           (send new-db occupy)
-           (send loco update-location new-db))
-          ; else loco left a detection block
+           (send new-d-block occupy)
+           (send loco update-location new-d-block))
+          ; Else loco left a detection block
           (else
            (send old-db clear)
            (send loco left-d-block)))
-        new-db-id))
+        new-d-block-id))
 
     (define/public (get-d-block-ids)
       (ext:get-d-block-ids))
