@@ -65,10 +65,6 @@
       (append (remq this (send node-1 get-tracks))
               (remq this (send node-2 get-tracks))))
 
-    (define (has-node? track node)
-      (or (eq? (get-field node-1 track) node)
-          (eq? (get-field node-2 track) node)))
-
     ; TODO: make it work for tracks that are part
     ;       of a switch
     (define/public (from track)
