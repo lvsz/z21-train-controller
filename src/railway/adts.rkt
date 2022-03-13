@@ -7,11 +7,13 @@
          loco%
          track?
          d-block?
+         get-nodes
          switch?)
 
 (require racket/class
          racket/list
-         racket/match)
+         racket/match
+         racket/set)
 
 
 (define (track? track)
@@ -126,6 +128,8 @@
                        (get-field node-2 position-1)
                        (get-field length position-1))
     (inherit-field id)
+
+    ;; Changes position, stored in field to allow for overwrites at runtime
     (field (_set-position (lambda (pos)
                             (set! position pos)
                             (callback))))
@@ -162,24 +166,13 @@
         position-1
         position-2))
 
-    (define/public (get-track)
-      (if (switch? (current))
-        (send (current) get-position)
-        (current)))
-
-    (define tracks
-      (append (if (switch? position-1)
-                (send position-1 get-tracks)
-                (list position-1))
-              (if (switch? position-2)
-                (send position-2 get-track)
-                (list position-2))))
-
-    (define/public (get-tracks)
-      tracks)
-
     (define/override (from track)
       (send (current) from track))
+
+    (define/override (get-connected-tracks)
+      (let ((tracks (for/list ((n (get-nodes this)))
+                      (send n get-tracks))))
+        (remq this (apply set-union tracks))))
 
     (define/override (get-length)
       (send (current) get-length))
@@ -241,8 +234,8 @@
 ; mostly useful when dealing with switches
 (define (get-nodes track)
   (if (switch? track)
-    (append (get-nodes (get-field position-1 track))
-            (get-nodes (get-field position-2 track)))
+    (set-union (get-nodes (get-field position-1 track))
+               (get-nodes (get-field position-2 track)))
     (list (get-field node-1 track)
           (get-field node-2 track))))
 
