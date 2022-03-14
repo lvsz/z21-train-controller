@@ -7,7 +7,6 @@
          loco%
          track?
          d-block?
-         get-nodes
          switch?)
 
 (require racket/class
@@ -46,7 +45,13 @@
         (set! tracks (cons track tracks))))
 
     (define/public (remove-track track)
-      (set! tracks (remq track tracks)))))
+      (set! tracks (remq track tracks)))
+
+    (define/public (from track)
+      (if (or (not (memq track tracks)) ; no connection
+              (null? (cdr tracks)))     ; dead end
+        #f
+        (car (remq track tracks))))))
 
 ;; Most basic piece of a railway, consists of 2 nodes and a length,
 ;; length is used to calculate routes.
@@ -166,13 +171,34 @@
         position-1
         position-2))
 
-    (define/override (from track)
-      (send (current) from track))
+    (define nodes (get-nodes this))
 
     (define/override (get-connected-tracks)
-      (let ((tracks (for/list ((n (get-nodes this)))
+      (let ((tracks (for/list ((n (in-list nodes)))
                       (send n get-tracks))))
         (remq this (apply set-union tracks))))
+
+    ;; Node shared by the switch's components
+    (define hinge-node
+      (do ((n nodes (cdr n)))
+        ((and (memq (car n) (get-nodes position-1))
+              (memq (car n) (get-nodes position-2)))
+         (begin (displayln (send (car n) get-id)) (car n)))))
+
+    (define/override (from track)
+      (let* ((from-nodes (get-nodes track))
+             (common-node (set-intersect from-nodes nodes)))
+        (displayln common-node)
+        (cond ((or (null? common-node)              ; not connected
+                   (not (null? (cdr common-node)))) ; same track?
+               #f)
+              ((eq? hinge-node (car common-node))
+               ; coming from hinge-node, next depends on switch position
+               (let ((to-node (car (remq hinge-node (get-nodes (current))))))
+                 (car (remq this (send to-node get-tracks)))))
+              (else
+               ; coming from any other node, next goes through hinge-node
+               (send hinge-node from this)))))
 
     (define/override (get-length)
       (send (current) get-length))
