@@ -10,10 +10,13 @@
          switch?)
 
 (require racket/class
+         racket/function
          racket/list
          racket/match
          racket/set)
 
+(define switch-tracks (make-hash))
+(define switching-order (make-hash))
 
 (define (track? track)
   (is-a? track track%))
@@ -23,7 +26,6 @@
 
 (define (switch? track)
   (is-a? track switch%))
-
 
 ;; Stores the connection between 2 tracks,
 ;; or signifies the end of one,
@@ -48,10 +50,11 @@
       (set! tracks (remq track tracks)))
 
     (define/public (from track)
-      (if (or (not (memq track tracks)) ; no connection
-              (null? (cdr tracks)))     ; dead end
-        #f
-        (car (remq track tracks))))))
+      (let ((that-track (top-track track)))
+        (if (or (not (memq that-track tracks)) ; no connection
+                (null? (cdr tracks)))          ; dead end
+          #f
+          (car (remq that-track tracks)))))))
 
 ;; Most basic piece of a railway, consists of 2 nodes and a length,
 ;; length is used to calculate routes.
@@ -59,6 +62,7 @@
   (class object%
     (init-field id node-1 node-2 length)
     (super-new)
+
     (send node-1 add-track this)
     (send node-2 add-track this)
 
@@ -69,29 +73,29 @@
       length)
 
     (define/public (get-connected-tracks)
-      (append (remq this (send node-1 get-tracks))
-              (remq this (send node-2 get-tracks))))
+      (let ((this-track (top-track this)))
+        (append (remq this-track (send node-1 get-tracks))
+                (remq this-track (send node-2 get-tracks)))))
 
-    ; TODO: make it work for tracks that are part
-    ;       of a switch
     (define/public (from track)
-      (match (remq track (get-connected-tracks))
-        ((list)    #f)
-        ((list to) to)
-        (_         #f)))))
+      (let ((that-track (top-track track)))
+        (match (remq that-track (get-connected-tracks))
+          ((list)    #f)
+          ((list to) to)
+          (_         #f))))))
 
 
 ;; A detection block is able to tell whether a train is located on it,
 ;; or on a neighbouring detection block.
 (define d-block%
   (class track%
-    (init ((_id id))
+    (init ((_id     id))
           ((_node-1 node-1))
           ((_node-2 node-2))
           ((_length length)))
-    (field (status 'green))
     (super-make-object _id _node-1 _node-2 _length)
     (inherit-field id node-1 node-2 length)
+    (field (status 'green))
     (inherit get-connected-tracks)
 
     (define connected-blocks
@@ -122,6 +126,18 @@
                  (send d-block clear)))))))
 
 
+;; I have basic switch S1 with 2 positions
+;; I make 3-way switch S2-1, using basic switch as second position
+;; I want to be able to set S2-1 to positions 1, 2 and 3
+;; to know positions 2 and 3 means changing position-2 or S1,
+;;      I have to go through the positions of any subswitches on creation
+;;      and associate each with the correct number
+;;      count number of possible positions, create vector
+;;      store set-position lambdas in that vector
+;;; for infrabel, let set-switch-position return a list of the form:
+;;;   ((s3 . 2) (s2 . 2) (s1 . 1)), where pos-1 of s1 is s2, and pos-2 of s2 is s3
+;;;   internally equal to (send s1 set-position 5)
+
 ;; A switch is a compound track, it has 2 position it can switch between,
 ;; it is possible for one or both of those positions to be switches as well
 (define switch%
@@ -134,29 +150,14 @@
                        (get-field length position-1))
     (inherit-field id)
 
-    ;; Changes position, stored in field to allow for overwrites at runtime
-    (field (_set-position (lambda (pos)
-                            (set! position pos)
-                            (callback))))
-
-    ;; If this switch contains one or more switches, its position needs to
-    ;; align with any of its sub-switches whenever their position gets changed
-    (define (automate-3+way track super-pos)
-      (let ((old-proc (get-field _set-position track)))
-        (set-field! _set-position
-                    track
-                    (lambda (sub-pos)
-                      (_set-position super-pos)
-                      (old-proc sub-pos)))))
-    (when (switch? position-1)
-      (automate-3+way position-1 1))
-    (when (switch? position-2)
-      (automate-3+way position-2 2))
-
     ; Removes tracks from their nodes, so that each node
     ; only lists up to two connected tracks
     (update-nodes! position-1 this)
     (update-nodes! position-2 this)
+
+    ; After removing tracks from their nodes, store their data elsewhere
+    (hash-set! switch-tracks position-1 this)
+    (hash-set! switch-tracks position-2 this)
 
     (define position 1)
 
@@ -164,12 +165,39 @@
       position)
 
     (define/public (set-position pos)
-      (_set-position pos))
+      (let ((track (case pos
+                     ((1) position-1)
+                     ((2) position-2)
+                     (else (error "set-position: Invalid switch position")))))
+        (map (lambda (switch!)
+               (switch!))
+             (hash-ref switching-order track))))
 
     (define (current)
       (if (= position 1)
         position-1
         position-2))
+
+    (define (update! track pos)
+      (hash-update!
+        switching-order
+        track
+        (curry cons (lambda () (set! position pos)))
+        (list (lambda () (set! position pos))))
+      track)
+
+    (define tracks
+      (append (map (curryr update! 1)
+                   (if (switch? position-1)
+                     (send position-1 get-tracks)
+                     (list position-1)))
+              (map (curryr update! 2)
+                   (if (switch? position-2)
+                     (send position-2 get-tracks)
+                     (list position-2)))))
+
+    (define/public (get-tracks)
+      tracks)
 
     (define nodes (get-nodes this))
 
@@ -183,22 +211,31 @@
       (do ((n nodes (cdr n)))
         ((and (memq (car n) (get-nodes position-1))
               (memq (car n) (get-nodes position-2)))
-         (begin (displayln (send (car n) get-id)) (car n)))))
+         ;(begin (displayln (send (car n) get-id)) (car n)))))
+         (car n))))
+
+    ;(define (_from track full-info)
+    ;  (let* ((from-nodes (get-nodes track))
+    ;         (common-node (set-intersect from-nodes nodes)))
+    ;    (cond ((or (null? common-node)              ; not connected
+    ;               (not (null? (cdr common-node)))) ; same track?
+    ;           #f)
+    ;          ((eq? hinge-node (car common-node))
+    ;           (if full-info
+    ;             (let ((
+    ;           ; coming from hinge-node, next depends on switch position
+    ;           (let ((to-node (car (remq hinge-node (get-nodes (current))))))
+    ;             (car (remq this (send to-node get-tracks)))))
+    ;          (else
+    ;           ; coming from any other node, next goes through hinge-node
+    ;           (send hinge-node from this)))))
 
     (define/override (from track)
-      (let* ((from-nodes (get-nodes track))
-             (common-node (set-intersect from-nodes nodes)))
-        (displayln common-node)
-        (cond ((or (null? common-node)              ; not connected
-                   (not (null? (cdr common-node)))) ; same track?
-               #f)
-              ((eq? hinge-node (car common-node))
-               ; coming from hinge-node, next depends on switch position
-               (let ((to-node (car (remq hinge-node (get-nodes (current))))))
-                 (car (remq this (send to-node get-tracks)))))
-              (else
-               ; coming from any other node, next goes through hinge-node
-               (send hinge-node from this)))))
+      (send (current) from track))
+
+    ;; Return options, their positions and lengths
+    (define/public (froms track)
+      (from track))
 
     (define/override (get-length)
       (send (current) get-length))
@@ -273,3 +310,5 @@
       (send node remove-track old-track)
       (send node add-track new-track))))
 
+(define (top-track track)
+  (hash-ref switch-tracks track track))

@@ -9,7 +9,7 @@
 
 (require racket/class
          racket/list
-         "adts.rkt"
+         "tracks.rkt"
          "setup.rkt")
 
 
@@ -54,8 +54,8 @@
       (hash-set! locos id (make-object loco% id prev-track curr-track)))
     (define/public (remove-loco id)
       (hash-remove! locos id))
-    (construct setup nodes tracks d-blocks switches locos)))
 
+      (construct setup nodes tracks d-blocks switches locos)))
 
 ;; Using a given setup, this function reads the file, evaluating it line by
 ;; line, creating objects and storing them in the given hash-maps.
@@ -104,3 +104,47 @@
                   (list read-id read-track read-track)
                   params))))))
 
+
+#|
+
+(define (dijkstra tracks start)
+  (let ((dist (make-hash (list (cons start 0))))
+        (prev (make-hash))
+        (pq (make-pqueue <))
+        (pq-ids (make-hash (cons start 0))))
+
+    (define (notify pq-id track distance)
+      (hash-set! pq-ids track pq-id))
+
+    (define (relax!)
+      )
+
+    (pqueue-enqueue! pq start 0 notify)
+    (for ((t (in-list (remq start tracks))))
+      (hash-set! dist t +inf.0)
+      (hash-set! prev t #f)
+      (hash-set!)
+      (pqueue-enqueue! pq t +inf.0 notify))
+
+    (let loop ()
+      (let-values (((from distance) (serve! pq notify)))
+        (for 
+
+(define (dijkstra start tracks (avoid '()))
+  (let ((distances (make-hash (map (lambda (t) (cons t +inf.0)) tracks)))
+        (how-to-reach (make-hash (map (lambda (t) (cons t '())) tracks)))
+        (pq-ids (make-hash (map (lambda (t) (cons t '()) tracks))))
+        (pq (priority-que <)))
+    (define (notify pq-id track distance)
+      (hash-set! pq-ids track pq-id))
+    (define (pq-id-of track)
+      (hash-ref pq-ids track))
+    (define (relax! from to)
+      (let* ((weight (send to get-length))
+             (new-distance (+ (hash-ref distances from) weight)))
+        (when (< new-distance (hash-ref distances to))
+          (hash-set! distances to new-distance)
+          (hash-set! how-to-reach to from)
+          (unless (queue-empty? pq
+
+                                |#

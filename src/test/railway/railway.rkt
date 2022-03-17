@@ -10,7 +10,7 @@
          rackunit/text-ui
          "../../railway/setup.rkt"
          "../../railway/railway.rkt"
-         "../../railway/adts.rkt")
+         "../../railway/tracks.rkt")
 
 (define railway (make-object railway% 'hardware))
 
