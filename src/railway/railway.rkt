@@ -9,6 +9,7 @@
 
 (require racket/class
          racket/list
+         "loco.rkt"
          "tracks.rkt"
          "setup.rkt")
 

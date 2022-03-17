@@ -41,6 +41,7 @@
 
     (define/public (start)
       (for ((switch (in-list (send railway get-switches))))
+        ; TODO: set hardware positions instead of getting them
         (send switch set-position (ext:get-switch-position (send switch get-id))))
       (set! running #t)
       (thread (lambda ()
