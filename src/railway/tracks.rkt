@@ -162,7 +162,7 @@
         (unless (eq? superior this)
           (send superior set-position this))
         (set! current-position t)
-        (callback)))
+        (callback id (get-position))))
 
     (define nodes (get-nodes this))
 
@@ -178,41 +178,24 @@
               (memq (car n) (get-nodes track-2)))
          (car n))))
 
-    ;(define (_from track full-info)
-    ;  (let* ((from-nodes (get-nodes track))
-    ;         (common-node (set-intersect from-nodes nodes)))
-    ;    (cond ((or (null? common-node)              ; not connected
-    ;               (not (null? (cdr common-node)))) ; same track?
-    ;           #f)
-    ;          ((eq? hinge-node (car common-node))
-    ;           (if full-info
-    ;             (let ((
-    ;           ; coming from hinge-node, next depends on switch position
-    ;           (let ((to-node (car (remq hinge-node (get-nodes current-position)))))
-    ;             (car (remq this (send to-node get-tracks)))))
-    ;          (else
-    ;           ; coming from any other node, next goes through hinge-node
-    ;           (send hinge-node from this)))))
-
     (define/override (from track)
       (send current-position from track))
 
     ;; Returns a list of exit options when coming from a track
-   ; (define/public (options-from track)
-   ;   (let ((from-nodes (get-nodes track)))
-   ;     (for ((t (in-list tracks)))
-   ;       (let ((common 
-
+    (define/public (options-from track)
+      (for/list ((to (in-list
+                       (map (lambda (t)
+                              (send t from track))
+                            base-tracks)))
+                 #:when to)
+        to))
 
     (define/override (get-length)
       (send current-position get-length))
 
     ; A function that get called every time the switch changes position
-    ;(define callback-proc void)
     (define callback void)
-    ;(define (callback) (callback-proc))
     (define/public (set-callback proc)
-      ;(set! callback-proc proc))))
       (set! callback proc))))
 
 

@@ -129,15 +129,12 @@
         (send infrabel start)
         ;; add callback to switches to notify listeners & infrabel when changed
         (for ((switch (in-list (send railway get-switches))))
-          (let ((id (send switch get-id)))
-            (send switch
-                  set-callback
-                  (lambda ()
-                    (let ((pos (send switch get-position)))
-                      (for-each (lambda (fn)
-                                  (fn id pos))
-                                switch-listeners)
-                      (send infrabel set-switch-position id pos))))))
+          (send switch
+                set-callback
+                (lambda (id pos)
+                  (for ((listener (in-list switch-listeners)))
+                    (listener id pos))
+                  (send infrabel set-switch-position id pos))))
         (sleep 0.5)
         (set! update-thread (thread get-updates)))
 
