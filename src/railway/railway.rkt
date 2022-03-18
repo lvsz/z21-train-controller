@@ -11,7 +11,8 @@
          racket/list
          "loco.rkt"
          "tracks.rkt"
-         "setup.rkt")
+         "setup.rkt"
+         "../data/pqueue.rkt")
 
 
 ;; An instance of the railway% class is can load a chosen railway setup
