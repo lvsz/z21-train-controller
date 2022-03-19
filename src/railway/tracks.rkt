@@ -133,12 +133,13 @@
                        (get-field node-2 track-1)
                        (get-field length track-1))
     (inherit-field id superior)
-    (field (base-tracks (append (if (switch? track-1)
-                                  (get-field base-tracks track-1)
-                                  (list track-1))
-                                (if (switch? track-2)
-                                  (get-field base-tracks track-2)
-                                  (list track-2)))))
+    (field (options (append (if (switch? track-1)
+                              (get-field options track-1)
+                              (list track-1))
+                            (if (switch? track-2)
+                              (get-field options track-2)
+                              (list track-2)))))
+
     (set! superior this)
     (set-field! superior track-1 this)
     (set-field! superior track-2 this)
@@ -149,6 +150,9 @@
     (update-nodes! track-2 this)
 
     (define current-position track-1)
+
+    (define/public (get-tracks)
+      (list track-1 track-2))
 
     (define/public (get-position)
       (if (eq? current-position track-1)
@@ -164,31 +168,24 @@
         (set! current-position t)
         (callback id (get-position))))
 
+    ;; Safe to save nodes, as they can no longer change
     (define nodes (get-nodes this))
 
+    ;; Find all tracks connecting to this track
     (define/override (get-connected-tracks)
       (let ((tracks (for/list ((n (in-list nodes)))
                       (send n get-tracks))))
         (remq (top-track this) (apply set-union tracks))))
 
-    ;; Node shared by the switch's components
-    (define hinge-node
-      (do ((n nodes (cdr n)))
-        ((and (memq (car n) (get-nodes track-1))
-              (memq (car n) (get-nodes track-2)))
-         (car n))))
-
     (define/override (from track)
       (send current-position from track))
 
-    ;; Returns a list of exit options when coming from a track
+    ;; Returns a list of simple tracks that can be entered from another track
     (define/public (options-from track)
-      (for/list ((to (in-list
-                       (map (lambda (t)
-                              (send t from track))
-                            base-tracks)))
-                 #:when to)
-        to))
+      (let ((top-t (top-track track)))
+        (filter (lambda (opt)
+                  (memq top-t (send opt get-connected-tracks)))
+                options)))
 
     (define/override (get-length)
       (send current-position get-length))

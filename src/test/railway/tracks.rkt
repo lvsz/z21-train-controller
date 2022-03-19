@@ -8,6 +8,7 @@
          rackunit/text-ui
          "../../railway/tracks.rkt")
 
+
 (define n1  (make-object node% 'n1))
 (define n2  (make-object node% 'n2))
 (define n3  (make-object node% 'n3))
@@ -24,7 +25,8 @@
 
 ; railway setup used for tests
 ;
-;      n1============n2
+;        n1========n2
+;       /            \
 ;       \            /
 ;  n6----}n5--n4--n3(
 ;  ||   /            \
@@ -54,6 +56,7 @@
                      t-56 b-67 b-78 s-51-56 t-58
                      s-5156-58 t-39 s-23-39))
 
+
 (define node-tests
   (test-suite
     "Tests for node% in tracks.rkt"
@@ -71,6 +74,7 @@
                  b-910)
       (check-false (send t-51 from b-78)
                    "Return #f when tracks don't connect"))))
+
 
 (define block-tests
   (test-suite
@@ -102,14 +106,24 @@
                  'orange
                  "Block b-1011 should remain orange after clearing one of its neighbours"))))
 
+
 (define switch-tests
   (test-suite
     "Tests for switch% in tracks.rkt"
     (test-case
-      "A switch can change position"
+      "A switch can change position to 1, 2, or one of its child tracks"
       (check-eq? (begin (send s-51-56 set-position 2)
                         (send s-51-56 get-position))
-                 2))
+                 2)
+      (check-eq? (begin (send s-51-56 set-position 1)
+                        (send s-51-56 get-position))
+                 1)
+      (check-eq? (begin (send s-51-56 set-position t-56)
+                        (send s-51-56 get-position))
+                 2)
+      (check-exn exn:fail? (lambda () (send s-51-56 set-position 0)))
+      (check-exn exn:fail? (lambda () (send s-51-56 set-position 3)))
+      (check-exn exn:fail? (lambda () (send s-51-56 set-position t-58))))
     (test-case
       "A callback function should be called after a switch changes"
       (check-true (let* ((switch s-51-56)
@@ -124,26 +138,41 @@
                     (send switch set-position (if (= old-pos 1) 2 1))
                     success)))
     (test-case
-      "When changing an inferior switch, its superior should change first"
-      (check-true (let* ((inf-switch s-51-56)
-                         (sup-switch s-5156-58)
-                         (old-pos (send inf-switch get-position))
-                         (success #f)
-                         (f (lambda (fid new-pos)
-                              (case fid
-                                ((s-5156-58)
-                                 (when (eq? success #f)
-                                   (set! success 'tmp)))
-                                ((s-51-56)
-                                 (when (eq? success 'tmp)
-                                   (set! success #t)))))))
-                    (send sup-switch set-position 2)
-                    (send inf-switch set-callback f)
-                    (send sup-switch set-callback f)
-                    (send inf-switch set-position (if (= old-pos 1) 2 1))
-                    (and (= 1 (send sup-switch get-position))
-                         success))))))
-
+      "When changing an child switch, its parent should change first"
+      (check-true
+        (let* ((child s-51-56)
+               (parent s-5156-58)
+               (old-pos (send child get-position))
+               (success #f)
+               (f (lambda (fid new-pos)
+                    (case fid
+                      ((s-5156-58)
+                       ; proceed when `success` hasn't been touched yet
+                       (when (and (eq? success #f)
+                                  (= (send child get-position)
+                                     old-pos))
+                         (set! success 'tmp)))
+                      ((s-51-56)
+                       ; proceed when `success` has been touched
+                       (when (eq? success 'tmp)
+                         (set! success (= (send parent get-position)
+                                          1))))))))
+               (send parent set-position 2)
+               (send child set-callback f)
+               (send parent set-callback f)
+               (send child set-position (if (= old-pos 1) 2 1))
+               (and (= 1 (send parent get-position))
+                    success))))
+    (test-case
+      "Coming from a track, a switch can give its sub track options"
+      (check-equal? (list t-39)
+                    (send s-23-39 options-from b-910))
+      (check-equal? (set t-23 t-39)
+                    (list->set (send s-23-39 options-from t-34)))
+      (check-equal? (set t-51 t-56)
+                    (list->set (send s-51-56 options-from t-45)))
+      (check-equal? (set t-51 t-56 t-58)
+                    (list->set (send s-5156-58 options-from t-45))))))
 
 
 (define (run)
