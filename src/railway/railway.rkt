@@ -9,6 +9,7 @@
 
 (require racket/class
          racket/list
+         racket/set
          "loco.rkt"
          "tracks.rkt"
          "setup.rkt"
@@ -57,7 +58,59 @@
     (define/public (remove-loco id)
       (hash-remove! locos id))
 
-      (construct setup nodes tracks d-blocks switches locos)))
+    ;; Parse the setup and fill the datastructures
+    (construct setup
+               nodes
+               tracks
+               d-blocks
+               switches
+               locos)
+
+    (define prev+dist (make-hash))
+    (define route+dist (make-hash))
+
+    (define/public (get-route+distance from to)
+      (unless (and (d-block? from) (d-block? to))
+        (error "get-route+distance: Only routes between d-blocks available"))
+      (define (unfold to p+d)
+        (let loop ((curr to) (route '()))
+          (let ((prev (hash-ref p+d curr #f)))
+            (if prev
+              (loop (car prev) (cons curr route))
+              (cons curr route)))))
+      (let ((p+d (hash-ref prev+dist from)))
+        (if (hash-has-key? p+d to)
+          (values (unfold to p+d) (cdr (hash-ref p+d to)))
+          (let ((r+d (hash-ref route+dist from)))
+            (if (hash-has-key? r+d to)
+              (let* ((d-blocks (unfold to r+d))
+                     (route (let rec ((head (car d-blocks))
+                                      (tail (cdr d-blocks)))
+                              (if (null? tail)
+                                '(())
+                                (append (unfold (car tail)
+                                                (hash-ref prev+dist head))
+                                        (cdr (rec (car tail) (cdr tail))))))))
+                (values route (cdr (hash-ref r+d to))))
+              (values #f #f))))))
+
+    (define/public (get-route from to)
+      (let-values (((route dist) (get-route+distance from to)))
+        route))
+
+    (let ((t-tracks (for/list
+                      ((t (in-hash-values tracks))
+                       #:when (eq? t (get-field superior t)))
+                      t)))
+      (for ((d-block (in-hash-values d-blocks)))
+        (hash-set! prev+dist
+                   d-block
+                   (dijkstra t-tracks d-block)))
+      (for ((d-block (in-hash-values d-blocks)))
+        (hash-set! route+dist
+                   d-block
+                   (dijkstra-2 prev+dist d-block))))))
+
 
 ;; Using a given setup, this function reads the file, evaluating it line by
 ;; line, creating objects and storing them in the given hash-maps.
@@ -89,6 +142,7 @@
     (hash-ref tracks (read-id s)))
   (define (add new-object procs params)
     (apply new-object (map (lambda (f x) (f x)) procs params)))
+
   (for ((input (in-list (read-setup setup))))
     (let ((type   (string->symbol (car input)))
           (params (cdr input)))
@@ -107,46 +161,95 @@
                   params))))))
 
 
-#|
-
-(define (dijkstra tracks start)
+;; Special version of Dijkstra which assumes all edges are directed away from
+;; the source. If the shortest path doesn't require reversing the train, this
+;; will find it.
+(define (dijkstra tracks start (avoid '()))
   (let ((dist (make-hash (list (cons start 0))))
         (prev (make-hash))
-        (pq (make-pqueue <))
-        (pq-ids (make-hash (cons start 0))))
+        (pq (make-pqueue <=)))
 
-    (define (notify pq-id track distance)
-      (hash-set! pq-ids track pq-id))
+    (define (relax! from)
+      (lambda (to)
+        (let ((length-to (send to get-length))
+              (dist-from (hash-ref dist from)))
+          (when (< (+ dist-from length-to)
+                   (hash-ref! dist to +inf.0))
+            (hash-set! dist to (+ dist-from length-to))
+            (hash-set! prev to from)
+            (unless (pqueue-empty? pq)
+              (pqueue-reschedule! pq to (+ dist-from length-to)))))))
 
-    (define (relax!)
-      )
+    (define (for-each-option proc to #:from (from #f))
+      (for-each proc (set-subtract
+                       (if (switch? to)
+                         (if from
+                           (send to options-from from)
+                           (get-field options to))
+                         (list to))
+                       avoid)))
 
-    (pqueue-enqueue! pq start 0 notify)
-    (for ((t (in-list (remq start tracks))))
-      (hash-set! dist t +inf.0)
-      (hash-set! prev t #f)
-      (hash-set!)
-      (pqueue-enqueue! pq t +inf.0 notify))
+    (for ((track (in-list (set-subtract tracks (cons start avoid)))))
+      (for-each-option (lambda (opt)
+                         (pqueue-enqueue! pq opt +inf.0))
+                       track))
+    (for ((track (in-list (send start get-connected-tracks))))
+      (for-each-option (relax! start) track #:from start))
 
-    (let loop ()
-      (let-values (((from distance) (serve! pq notify)))
-        (for 
+    (let find-path ()
+      (let*-values (((track distance) (pqueue-serve! pq))
+                    ((prev-track) (hash-ref prev track #f)))
+        (when prev-track
+          (let ((to (send track from prev-track)))
+            (when to
+              (for-each-option (relax! track) to #:from track)))
+          (unless (pqueue-empty? pq)
+            (find-path)))))
 
-(define (dijkstra start tracks (avoid '()))
-  (let ((distances (make-hash (map (lambda (t) (cons t +inf.0)) tracks)))
-        (how-to-reach (make-hash (map (lambda (t) (cons t '())) tracks)))
-        (pq-ids (make-hash (map (lambda (t) (cons t '()) tracks))))
-        (pq (priority-que <)))
-    (define (notify pq-id track distance)
-      (hash-set! pq-ids track pq-id))
-    (define (pq-id-of track)
-      (hash-ref pq-ids track))
-    (define (relax! from to)
-      (let* ((weight (send to get-length))
-             (new-distance (+ (hash-ref distances from) weight)))
-        (when (< new-distance (hash-ref distances to))
-          (hash-set! distances to new-distance)
-          (hash-set! how-to-reach to from)
-          (unless (queue-empty? pq
+    (for/hash (((to from) (in-hash prev)))
+      (values to (cons from (hash-ref dist to))))))
 
-                                |#
+
+;; This version of the Dijkstra algorithm utlises the detection blocks as
+;; vertices, while the routes generated between them by other Dijkstra
+;; implementation serve as edges.
+;; Simply put, if d-block A already has a route to B, and B to C, then this
+;: will calculate the best route from A to C by making the train reverse on
+;; on d-block B. If this maneuver was not needed for the shortest route, the
+;; previous algorithm would have already found a route from A to C.
+(define (dijkstra-2 rs+ds start)
+  (let ((dist (make-hash (list (cons start 0))))
+        (prev (make-hash))
+        (pq (make-pqueue <)))
+
+    (define (relax! from)
+      (lambda (to)
+        (let ((length-to (cdr (hash-ref (hash-ref rs+ds from) to)))
+              (dist-from (hash-ref dist from)))
+          (when (< (+ dist-from length-to)
+                   (hash-ref! dist to +inf.0))
+            (hash-set! dist to (+ dist-from length-to))
+            (hash-set! prev to from)
+            (unless (pqueue-empty? pq)
+              (pqueue-reschedule! pq to (+ dist-from length-to)))))))
+
+    (for ((track (in-hash-keys rs+ds))
+          #:unless (eq? track start))
+      (pqueue-enqueue! pq track +inf.0))
+    (for ((track (in-hash-keys (hash-ref rs+ds start)))
+          (i (in-naturals))
+          #:when (d-block? track))
+      ((relax! start) track))
+
+    (let find-path ()
+      (let*-values (((track distance) (pqueue-serve! pq))
+                    ((prev-track) (hash-ref prev track #f)))
+        (when prev-track
+          (let ((next (filter d-block? (hash-keys (hash-ref rs+ds track)))))
+            (for-each (relax! track) next))
+          (unless (pqueue-empty? pq)
+            (find-path)))))
+
+    (for/hash (((to from) (in-hash prev)))
+      (values to (cons from (hash-ref dist to))))))
+

@@ -3,6 +3,7 @@
 (provide run)
 
 (require racket/class
+         racket/function
          racket/list
          racket/set
          racket/random
@@ -44,17 +45,25 @@
 (define u-5 (send railway get-track 'U-5))
 (define u-6 (send railway get-track 'U-6))
 
-(define component-tests
+(define route-tests
   (test-suite
-    "Check interdependency of components"
-    (send d-1-5 occupy)
-    (check-eq? (send d-1-4 get-status)
-               'orange
-               "A detection block should turn orange if a neighbor turns red")
-    (check-eq? (send s-2 get-position)
-               1)))
+    "Check path finding methods"
+    (check-equal? (map (lambda (x) (send (get-field superior x) get-id))
+                       (send railway get-route d-1-4 d-2-4))
+                  '(1-4 1-5 S-20 2-4)
+                  "Simple path between 1-4 and 2-4")
+    (check-false  (send railway get-route d-1-3 d-2-8)
+                  "No valid route between 1-3 and 2-8")
+    (check-exn    exn:fail?
+                  (lambda () (send railway get-route u-5 d-1-4))
+                  "Only accept d-blocks are start/end tracks")
+    (check-equal? (map (lambda (x) (send (get-field superior x) get-id))
+                       (send railway get-route d-2-7 d-1-5))
+                  '(2-7 S-4 S-8 S-3 U-6 S-1 2-1 S-1 U-6
+                    S-2 S-7 S-5 S-6 S-20 2-4 S-20 1-5)
+                  "More complicated route requiring reversing on d-blocks")))
 
 (define (run)
   (run-tests basic-tests)
-  (run-tests component-tests))
+  (run-tests route-tests))
 
