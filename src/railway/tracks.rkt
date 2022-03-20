@@ -7,6 +7,7 @@
          track?
          d-block?
          switch?
+         top-track?
          top-track)
 
 (require racket/class
@@ -23,6 +24,9 @@
 
 (define (switch? track)
   (is-a? track switch%))
+
+(define (top-track? track)
+  (eq? track (get-field superior track)))
 
 (define (top-track track)
   (let ((st (get-field superior track)))
@@ -185,13 +189,21 @@
         2))
 
     (define/public (set-position pos)
-      (let ((t (cond ((or (eq? pos 1) (eq? pos track-1)) track-1)
-                     ((or (eq? pos 2) (eq? pos track-2)) track-2)
-                     (else (error "set-position: Invalid switch position" pos)))))
-        (unless (eq? superior this)
-          (send superior set-position this))
-        (set! current-position t)
-        (callback id (get-position))))
+      (let/cc
+        break
+        (let ((t (cond ((or (eq? pos 1) (eq? pos track-1))
+                        track-1)
+                       ((or (eq? pos 2) (eq? pos track-2))
+                        track-2)
+                       ((memq pos options)
+                        (send (get-field superior pos) set-position pos)
+                        (break))
+                       (else
+                        (error "set-position: Invalid switch position" pos)))))
+          (unless (eq? superior this)
+            (send superior set-position this))
+          (set! current-position t)
+          (callback id (get-position)))))
 
     ;; Safe to save nodes, as they can no longer change
     (define nodes (get-nodes this))

@@ -164,6 +164,22 @@
                (and (= 1 (send parent get-position))
                     success))))
     (test-case
+      "A parent switch's set-position also accepts its children's options"
+      (check-true
+        (let ((child s-51-56)
+              (parent s-5156-58)
+              (old-pos t-51)
+              (new-pos t-56)
+              (par-pos t-58))
+          (send child set-position old-pos)
+          (and (eq? (send parent get-position) 1)
+               (eq? (send child get-position) 1)
+               (begin (send parent set-position par-pos)
+                      (send child set-position new-pos)
+                      #t)
+               (eq? (send child get-position) 2)
+               (eq? (send parent get-position) 1)))))
+    (test-case
       "Coming from a track, a switch can give its sub track options"
       (check-equal? (list t-39)
                     (send s-23-39 options-from b-910))
