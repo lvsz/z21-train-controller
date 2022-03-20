@@ -180,9 +180,6 @@
 
     (define current-position track-1)
 
-    (define/public (get-tracks)
-      (list track-1 track-2))
-
     (define/public (get-position)
       (if (eq? current-position track-1)
         1
