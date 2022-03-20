@@ -15,6 +15,7 @@
 (define in #f)
 (define out #f)
 
+;; Accept TCP listeners and wait until an initialize command
 (define (setup)
   (set! listener (tcp-listen port 4 #t))
   (let-values (((_in _out) (tcp-accept listener)))
@@ -27,6 +28,7 @@
         (else (loop))))))
 
 
+;; Try to fail as gracefully as possible
 (define (stop exn)
   (send infrabel stop)
   (when listener
@@ -34,27 +36,32 @@
     (and in (tcp-abandon-port in))
     (and out (tcp-abandon-port out)))
   (cond ((eq? exn 'request)
-         (info "Infrabel server stopped by request"))
+         (log/i "Infrabel server stopped by request"))
         ((exn:break? exn)
-         (info "Infrabel server stopped by user break"))
+         (log/i "Infrabel server stopped by user break"))
         ((eof-object? exn)
-         (info "Infrabel server stopped by client disconnection"))
+         (log/i "Infrabel server stopped by client disconnection"))
         (else
-         (info (format "Infrabel server stopped by unkown cause: ~a" exn))))
+         (log/i (format "Infrabel server stopped by unkown cause: ~a" exn))))
   (exit))
 
+
+;; Receive and log message
 (define (get-msg)
   (let ((msg (read in)))
-    (debug (format "received message: ~a" msg))
+    (log/i (format "received message: ~a" msg))
     msg))
 
+;; Reply and log message
 (define (reply response)
-  (debug (format "sent messgage: ~a~%" response))
+  (log/i (format "sent messgage: ~a~%" response))
   (writeln response out)
   (flush-output out))
 
+
+;; Parse any received messages and respond appropriately
 (define (run)
-  (info "Infrabel server activated")
+  (log/i "Infrabel server activated")
   (let loop ((msg (get-msg)))
     (when (eof-object? msg)
       (stop msg))
@@ -85,16 +92,18 @@
          (reply (send infrabel get-d-block-statuses)))
         ((stop)
          (stop 'request))
-        (else (debug (format "Unrecongized message: ~a" msg))))
+        (else (log/i (format "Unrecongized message: ~a" msg))))
       (loop (get-msg)))))
 
 
-(define info identity)
-(define debug identity)
+(define log/i identity) ; info-level logging function
+(define log/d identity) ; debug-level logging function
 
+
+;; Initialize everything and start the server
 (define (start-server (log-level 'debug))
   (when log-level
-    (set!-values (info debug) (make-loggers 'infrabel-server))
+    (set!-values (log/i log/d) (make-loggers 'infrabel-server))
     (start-logger log-level))
   (with-handlers ((exn:break? stop))
                  (send infrabel initialize (setup))

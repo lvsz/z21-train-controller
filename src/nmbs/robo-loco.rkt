@@ -7,6 +7,7 @@
          racket/vector
          "../railway/railway.rkt")
 
+;;; A class that can control a locomotive, going along a given route
 (define robo-loco%
   (class object%
     (init-field nmbs loco ((route-list route)) (on-finish void))
@@ -110,5 +111,6 @@
       (thread (lambda ()
                 (send nmbs set-loco-speed loco-id speed)
                 (choo-choo 1)
-                (send nmbs set-loco-speed loco-id 0))))))
+                (send nmbs set-loco-speed loco-id 0)
+                (on-finish))))))
 

@@ -35,7 +35,7 @@
                    (set! in i)
                    (set! out o))))
 
-;; struct for sending a request over tcp
+;; Struct for sending a request over TCP
 ;; msg contains the request
 ;; on-response is either #f or a function that takes the response as argument
 (struct request (msg on-response))
@@ -60,12 +60,12 @@
                       (loop)))
                   (loop)))))))
 
-;; send a message over tcp
+;; Send a message over TCP
 (define (put . args)
   (thread-send communicator
                (request args #f)))
 
-;; request something over tcp
+;; Request something over tcp
 (define (get . args)
   (let ((response #f)
         (responded #f))
@@ -82,7 +82,7 @@
 (define info identity)
 (define debug identity)
 
-;; for interchangeability purposes, this has the exact same interface
+;; For interchangeability purposes, this has the exact same interface
 ;; as the infrabel% class in infrabel.rkt
 (define infrabel%
   (class object%
@@ -115,7 +115,6 @@
       (put 'change-loco-direction id))
     (define/public (get-loco-d-block id)
       (get 'get-loco-d-block id))
-
 
     (define/public (get-switch-position id)
       (get 'get-switch-position id))
