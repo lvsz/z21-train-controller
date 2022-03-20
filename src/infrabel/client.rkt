@@ -15,9 +15,11 @@
       (values (string->number (read-line in))
               (read-line in)))))
 
+
 ;; TCP input & output
 (define-values (in out)
   (values #f #f))
+
 
 ;; Quickly try going through the different configs available
 (define tcp-files (directory-list "resources/tcp/" #:build? #t))
@@ -35,26 +37,12 @@
                        (set! in i)
                        (set! out o))))))
 
-;; Try connecting to server 10 times before failing
-;(define max-attempts 10)
-;(define (try-connect (n 1))
-;  (when (>= n max-attempts)
-;    (eprintf "tcp-connect failed after ~a attempts~%" n)
-;    (exit))
-;  (with-handlers ((exn:fail:network?
-;                      (lambda (exn)
-;                        (eprintf "tcp-connect attempt ~a failed~%" n)
-;                        (sleep (* n 0.5))
-;                        (try-connect (add1 n)))))
-;                 ; connection succesful, update i/o ports
-;                 (let-values (((i o) (tcp-connect host port)))
-;                   (set! in i)
-;                   (set! out o))))
 
 ;; Struct for sending a request over TCP
 ;; msg contains the request
 ;; on-response is either #f or a function that takes the response as argument
 (struct request (msg on-response))
+
 
 ;; Several threads may be sending & requesting data over tcp,
 ;; so use this thread to avoid race conditions
@@ -76,10 +64,12 @@
                       (loop)))
                   (loop)))))))
 
+
 ;; Send a message over TCP
 (define (put . args)
   (thread-send communicator
                (request args #f)))
+
 
 ;; Request something over tcp
 (define (get . args)
@@ -94,9 +84,11 @@
       (begin (sleep 0.1)
              (wait))))))
 
+
 ;; Logging function that can be enabled
 (define info identity)
 (define debug identity)
+
 
 ;; For interchangeability purposes, this has the exact same interface
 ;; as the infrabel% class in infrabel.rkt
