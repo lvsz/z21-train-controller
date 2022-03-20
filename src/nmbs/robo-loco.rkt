@@ -110,7 +110,7 @@
     (define/public (start)
       (thread (lambda ()
                 (send nmbs set-loco-speed loco-id speed)
-                (choo-choo 1)
-                (send nmbs set-loco-speed loco-id 0)
-                (on-finish))))))
+                (begin0 (choo-choo 1)
+                        (send nmbs set-loco-speed loco-id 0)
+                        (on-finish)))))))
 
