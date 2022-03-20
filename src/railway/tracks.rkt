@@ -93,7 +93,7 @@
                 (remq this-track (send node-2 get-tracks)))))
 
     (define/public (from track)
-      (let ((that-track (top-track track)))
+      (let ((that-track (and track (top-track track))))
         (match (remq that-track (get-connected-tracks))
           ((list to) to)
           (_         #f))))
