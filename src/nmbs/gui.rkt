@@ -91,15 +91,33 @@
                (stretchable-height #f)
                (alignment '(right top)))
 
-    ; list that keeps all loco ids
+    ;; list that keeps all loco ids
     (define locos (send nmbs get-loco-ids))
 
-    ; no active loco when there are no locos
-    ; otherwise default to first one in list
+    ;; no active loco when there are no locos
+    ;; otherwise default to first one in list
     (define active-loco
       (if (null?  locos)
         #f
         (car locos)))
+
+    (define (set-active-loco! loco)
+      (set! active-loco loco)
+      (active-loco-update!))
+
+    ;; function that updates UI elements when active loco changes
+    (define (active-loco-update!)
+      (cond ((not active-loco)
+             (send speed-slider enable #f)
+             (send route-choice enable #f))
+            ((zero? (send nmbs get-loco-speed active-loco))
+             (send speed-slider enable #t)
+             (if (send nmbs get-loco-d-block active-loco)
+               (send route-choice enable #t)
+               (send route-choice enable #f)))
+            (else
+             (send speed-slider enable #t)
+             (send route-choice enable #f))))
 
     ;; list of track ids that a loco can be added on
     (define starting-spots
@@ -119,10 +137,7 @@
     (define add-loco-menu
       (new choice%
            (label "Add new locomotive to track")
-           (choices (cons "---"
-                          (map (lambda (starting-spot)
-                                 (symbol->string starting-spot))
-                               starting-spots)))
+           (choices (cons "---" (map symbol->string starting-spots)))
            (parent this)
            (min-width 155)
            (callback
@@ -135,7 +150,7 @@
                      ; add listener for speed updates
                      (send nmbs add-loco-speed-listener id (mk-listener id))
                      ; set new loco to active loco
-                     (set! active-loco id)
+                     (set-active-loco! id)
                      (send choice set-selection 0))))))))
 
     ;; initialize selection menu, listing all available locos
@@ -153,7 +168,7 @@
                (let ((idx (send choice get-selection)))
                  (unless (null? locos)
                    (let ((loco (list-ref locos idx)))
-                     (set! active-loco loco)
+                     (set-active-loco! loco)
                      (send speed-slider set-value
                            (send nmbs get-loco-speed loco)))))))))
 
@@ -162,16 +177,18 @@
         (send loco-select-menu delete 0))
       (set! locos (append locos (list id)))
       (send loco-select-menu append (symbol->string id))
-      (send loco-select-menu set-selection (sub1 (length locos))))
+      (send loco-select-menu set-selection (sub1 (length locos)))
+      (active-loco-update!))
 
     (define (remove-loco-from-menu!)
       (when active-loco
         (set! locos (remq active-loco locos))
         (send loco-select-menu delete (send loco-select-menu get-selection))
         (if (empty? locos)
-          (begin (set! active-loco #f)
+          (begin (set-active-loco! #f)
                  (send loco-select-menu append "---"))
-          (set! active-loco (list-ref locos (send loco-select-menu get-selection))))))
+          (set-active-loco!
+            (list-ref locos (send loco-select-menu get-selection))))))
 
     (define loco-control
       (new vertical-pane%
@@ -191,13 +208,11 @@
            (min-width 150)
            (style '(horizontal vertical-label))
            (init-value 0)
-           (enabled #t)
+           (enabled #f)
            (callback
              (lambda (slider evt)
-               (if (> (send slider get-value) 30)
-                 (send route-choice enable #f)
-                 (send route-choice enable #t))
                (when active-loco
+                 (active-loco-update!)
                  (send nmbs set-loco-speed active-loco
                        (send slider get-value)))))))
 
@@ -207,6 +222,7 @@
            (parent loco-control)
            (choices (map symbol->string d-block-ids))
            (vert-margin 0)
+           (enabled #f)
            (callback
              (lambda (choice evt)
                (thread (lambda ()
@@ -252,21 +268,21 @@
     (define (switch-changed id position)
       (send (hash-ref buttons id) set-label (mk-label id position)))
     (send nmbs add-switch-listener switch-changed)
-    (for-each (lambda (id)
-                (hash-set! buttons id
-                           (new button%
-                                (label (mk-label id))
-                                (parent this)
-                                (enabled #t)
-                                (vert-margin 0)
-                                (horiz-margin 0)
-                                (callback
-                                  (lambda (button evt)
-                                    (let ((pos (send nmbs get-switch-position id)))
-                                      (if (= pos 1)
-                                        (send nmbs set-switch-position id 2)
-                                        (send nmbs set-switch-position id 1))))))))
-                (sort (send nmbs get-switch-ids) id<?))))
+    (for ((id (in-list (sort (send nmbs get-switch-ids) id<?))))
+      (hash-set! buttons
+                 id
+                 (new button%
+                      (label (mk-label id))
+                      (parent this)
+                      (enabled #t)
+                      (vert-margin 0)
+                      (horiz-margin 0)
+                      (callback
+                        (lambda (button evt)
+                          (let ((pos (send nmbs get-switch-position id)))
+                            (if (= pos 1)
+                              (send nmbs set-switch-position id 2)
+                              (send nmbs set-switch-position id 1))))))))))
 
 (define db-light%
   (class object%
