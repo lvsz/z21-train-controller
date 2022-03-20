@@ -6,7 +6,8 @@
          switch%
          track?
          d-block?
-         switch?)
+         switch?
+         top-track)
 
 (require racket/class
          racket/function
@@ -22,6 +23,12 @@
 
 (define (switch? track)
   (is-a? track switch%))
+
+(define (top-track track)
+  (let ((st (get-field superior track)))
+    (if (eq? st track)
+      track
+      (top-track st))))
 
 ;; Stores the connection between 2 tracks,
 ;; or signifies the end of one,
@@ -237,8 +244,3 @@
       (send node remove-track old-track)
       (send node add-track new-track))))
 
-(define (top-track track)
-  (let ((st (get-field superior track)))
-    (if (eq? st track)
-      track
-      (top-track st))))

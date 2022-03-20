@@ -5,6 +5,8 @@
          track?
          d-block?
          switch?
+         top-track?
+         top-track
          setup-ids)
 
 (require racket/class
@@ -100,7 +102,7 @@
 
     (let ((t-tracks (for/list
                       ((t (in-hash-values tracks))
-                       #:when (eq? t (get-field superior t)))
+                       #:when (top-track? t))
                       t)))
       (for ((d-block (in-hash-values d-blocks)))
         (hash-set! prev+dist
