@@ -33,7 +33,8 @@
           ((straight-with-switch) (sim:setup-straight-with-switch))
           ((loop)                 (sim:setup-loop))
           ((loop-and-switches)    (sim:setup-loop-and-switches))
-          (else                   (error (format "Setup ~a not found" setup-id))))
+          (else                   (error
+                                    (format "Setup ~a not found" setup-id))))
       (ext:start-simulator)
       'initialized)
 
