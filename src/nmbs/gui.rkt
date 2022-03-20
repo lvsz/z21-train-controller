@@ -128,7 +128,8 @@
     (define (mk-listener id)
       (lambda (speed)
         (when (eq? id active-loco)
-          (send speed-slider set-value speed))))
+          (send speed-slider set-value speed)
+          (active-loco-update!))))
     (for ((loco (in-list locos)))
       (send nmbs add-loco-speed-listener loco (mk-listener loco)))
 
