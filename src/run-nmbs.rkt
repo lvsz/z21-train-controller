@@ -6,14 +6,14 @@
          "nmbs/nmbs.rkt"
          "infrabel/infrabel.rkt"
          (prefix-in tcp: "infrabel/client.rkt")
-         (prefix-in local: "infrabel/infrabel.rkt"))
+         (prefix-in raw: "infrabel/infrabel.rkt"))
 
-(define (run-nmbs (remote #t))
+(define (run-nmbs #:remote? (remote #t))
 
   (define infrabel
     (if remote
       (new tcp:infrabel%)
-      (new local:infrabel%)))
+      (new raw:infrabel%)))
 
   (define nmbs
     (new nmbs% (infrabel infrabel)))
