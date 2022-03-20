@@ -2,7 +2,7 @@
 
 (require "infrabel/server.rkt")
 
-(define rpi-config "resources/tcp/raspberry.txt")
+(define rpi-config "resources/tcp/raspberrypi.txt")
 (define local-config "resources/tcp/localhost.txt")
   (define (get-port file)
     (call-with-input-file file (lambda (in)
