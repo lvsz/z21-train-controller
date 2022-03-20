@@ -98,10 +98,10 @@
                              #f)
                             (else
                              (wait (send nmbs get-loco-d-block loco-id))))))
-                  (let ((d-block (send nmbs get-d-block db)))
+                  (let ((id-vec (vector-map (lambda (x) (send x get-id)) route)))
                     (update-loco db)
                     ; check loco is still on the planned route
-                    (match (vector-memq d-block route)
+                    (match (vector-memq db id-vec)
                       (#f #f)
                       (n  (choo-choo (add1 n)))))))
               (else (sleep sleep-time)
