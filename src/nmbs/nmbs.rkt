@@ -55,10 +55,11 @@
 
     ; Change the speed, notifying any listeners
     (define/public (set-loco-speed id speed)
-      (for ((notify (in-list (hash-ref loco-speed-listeners id))))
-        (notify speed))
-      (send infrabel set-loco-speed id
-            (* (send (get-loco id) get-direction) speed)))
+      (let ((speed (abs speed)))
+        (for ((notify (in-list (hash-ref loco-speed-listeners id))))
+          (notify speed))
+        (send infrabel set-loco-speed id
+              (* (send (get-loco id) get-direction) speed))))
     (define/public (change-loco-direction id)
       (send infrabel set-loco-speed id (- (send infrabel get-loco-speed id)))
       (send (get-loco id) change-direction))
