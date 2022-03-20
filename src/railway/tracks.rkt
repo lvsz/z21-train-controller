@@ -26,7 +26,7 @@
 ;; Stores the connection between 2 tracks,
 ;; or signifies the end of one,
 (define node%
-  (class object%
+  (class* object% (writable<%>)
     (init-field id)
     (super-new)
 
@@ -50,12 +50,19 @@
         (if (or (not (memq that-track tracks)) ; no connection
                 (null? (cdr tracks)))          ; dead end
           #f
-          (car (remq that-track tracks)))))))
+          (car (remq that-track tracks)))))
+
+    ;; Custom printing functions to make debugging easier
+    (define/public (custom-write port)
+      (fprintf port "(object:node:~a ...)" id))
+    (define/public (custom-display port)
+      (fprintf port "node:~a" id))))
+
 
 ;; Most basic piece of a railway, consists of 2 nodes and a length,
 ;; length is used to calculate routes.
 (define track%
-  (class object%
+  (class* object% (writable<%>)
     (init-field id node-1 node-2 length)
     (super-new)
     (field (superior this))
@@ -78,7 +85,13 @@
       (let ((that-track (top-track track)))
         (match (remq that-track (get-connected-tracks))
           ((list to) to)
-          (_         #f))))))
+          (_         #f))))
+
+    ;; Custom printing functions to make debugging easier
+    (define/public (custom-write port)
+      (fprintf port "(object:track:~a ...)" id))
+    (define/public (custom-display port)
+      (fprintf port "track:~a" id))))
 
 
 ;; A detection block is able to tell whether a train is located on it,
@@ -90,7 +103,7 @@
           ((_node-2 node-2))
           ((_length length)))
     (super-make-object _id _node-1 _node-2 _length)
-    (inherit-field id node-1 node-2 length superior)
+    (inherit-field id superior)
     (field (status 'green))
     (inherit get-connected-tracks)
 
@@ -119,7 +132,13 @@
         (begin (set! status 'green)
                (for ((d-block (in-list connected-blocks))
                      #:unless (eq? (get-field status d-block) 'green))
-                 (send d-block clear)))))))
+                 (send d-block clear)))))
+
+    ;; Custom printing functions to make debugging easier
+    (define/override (custom-write port)
+      (fprintf port "(object:d-block:~a ...)" id))
+    (define/override (custom-display port)
+      (fprintf port "d-block:~a" id))))
 
 
 ;; A switch is a compound track, it has 2 positions it can switch between,
@@ -139,7 +158,6 @@
                             (if (switch? track-2)
                               (get-field options track-2)
                               (list track-2)))))
-
     (set! superior this)
     (set-field! superior track-1 this)
     (set-field! superior track-2 this)
@@ -193,7 +211,13 @@
     ; A function that get called every time the switch changes position
     (define callback void)
     (define/public (set-callback proc)
-      (set! callback proc))))
+      (set! callback proc))
+
+    ;; Custom printing functions to make debugging easier
+    (define/override (custom-write port)
+      (fprintf port "(object:switch:~a ...)" id))
+    (define/override (custom-display port)
+      (fprintf port "switch:~a" id))))
 
 
 ; Helper function that gets all nodes related to a track,
