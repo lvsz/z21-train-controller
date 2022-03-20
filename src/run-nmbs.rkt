@@ -16,14 +16,31 @@
 ;;   if #:setup = #f : gives the user a selection screen to pick a setup
 ;;   otherwise it will skip that step (assuming the given setup exists)
 (define (run-nmbs #:remote? (remote #f) #:setup (setup #f))
-  (for ((arg (in-vector (current-command-line-arguments))))
-    (case arg
-      (("--hardware" "-h")
-       (set! setup 'hardware))
-      (("--remote" "-r")
-       (set! remote #t))
-      (else
-       (eprintf "Unrecognized argument: ~a~%" arg))))
+  (let ((setups (map path->string (directory-list "resources/setups/")))
+        (args (current-command-line-arguments)))
+    (let loop ((i 0))
+      (unless (>= i (vector-length args))
+        (case (vector-ref args i)
+          (("--hardware" "-h")
+           (set! setup 'hardware)
+           (loop (add1 i)))
+          (("--setup")
+           (if (< (add1 i) (vector-length args))
+             (let ((id (vector-ref args (add1 i))))
+               (if (member id setups)
+                 (set! setup (string->symbol id))
+                 (eprintf "Unrecognized setup: ~a~%" id))
+               (loop (+ i 2)))
+             (eprintf "No setup given~%")))
+          (("--remote" "-r")
+           (set! remote #t)
+           (loop (add1 i)))
+          (("--list" "-l")
+           (for-each displayln setups)
+           (exit))
+          (else
+           (eprintf "Unrecognized argument: ~a~%" (vector-ref args i))
+           (loop (add1 i)))))))
 
   (define infrabel
     (if remote
