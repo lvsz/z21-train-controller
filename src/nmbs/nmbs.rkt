@@ -116,9 +116,10 @@
                              (nmbs this)
                              (loco loco)
                              (route route))))
-        (displayln (send robo-loco start))))
-
-
+        (unless (send robo-loco start)
+          (eprintf "nmbs%:route: ~a failed to reach destination ~a~%"
+                   loco-id
+                   (send dest get-id)))))
 
     ; Update detection block statuses & loco speeds on regular intervals.
     (define (get-updates)
@@ -173,7 +174,7 @@
                                (_start)))))))))
 
 
-;; simple struct that defines a spot where a locomotive can be added
+;; Simple struct that defines a spot where a locomotive can be added
 ;; like in the simulator, it needs a track for the train to start on
 ;; and a connected track to determine its direction
 ;; only detection blocks are allowed as starting tracks
