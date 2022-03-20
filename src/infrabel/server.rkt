@@ -10,13 +10,12 @@
 
 (define infrabel (new infrabel%))
 
-(define port (call-with-input-file "resources/tcp.txt" read))
 (define listener #f)
 (define in #f)
 (define out #f)
 
 ;; Accept TCP listeners and wait until an initialize command
-(define (setup)
+(define (setup port)
   (set! listener (tcp-listen port 4 #t))
   (let-values (((_in _out) (tcp-accept listener)))
     (set! in _in)
@@ -101,12 +100,12 @@
 
 
 ;; Initialize everything and start the server
-(define (start-server (log-level 'debug))
+(define (start-server port (log-level 'debug))
   (when log-level
     (set!-values (log/i log/d) (make-loggers 'infrabel-server))
     (start-logger log-level))
   (with-handlers ((exn:break? stop))
-                 (send infrabel initialize (setup))
+                 (send infrabel initialize (setup port))
                  (begin0 (send infrabel start)
                          (thread run))))
 

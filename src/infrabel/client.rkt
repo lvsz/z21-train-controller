@@ -8,32 +8,48 @@
 
 
 ;; Read TCP port & host from file
-(define-values (port host)
+(define (tcp-info file)
   (call-with-input-file
-    "resources/tcp.txt"
-    (lambda (file)
-      (values (string->number (read-line file))
-              (read-line file)))))
+    file
+    (lambda (in)
+      (values (string->number (read-line in))
+              (read-line in)))))
 
 ;; TCP input & output
 (define-values (in out)
   (values #f #f))
 
+;; Quickly try going through the different configs available
+(define tcp-files (directory-list "resources/tcp/" #:build? #t))
+(define (quick-connect (files tcp-files))
+  (if (null? files)
+    (begin (eprintf "tcp-connect failed~%")
+           (exit))
+    (let-values (((port host) (tcp-info (car files))))
+      (with-handlers ((exn:fail:network?
+                        (lambda (exn)
+                          (eprintf "tcp-connect on ~a@~a failed~%" port host)
+                          (quick-connect (cdr files)))))
+                     ; connection succesful, update i/o ports
+                     (let-values (((i o) (tcp-connect host port)))
+                       (set! in i)
+                       (set! out o))))))
+
 ;; Try connecting to server 10 times before failing
-(define max-attempts 10)
-(define (try-connect (n 1))
-  (when (>= n max-attempts)
-    (eprintf "tcp-connect failed after ~a attempts~%" n)
-    (exit))
-  (with-handlers ((exn:fail:network?
-                      (lambda (exn)
-                        (eprintf "tcp-connect attempt ~a failed~%" n)
-                        (sleep (* n 0.5))
-                        (try-connect (add1 n)))))
-                 ; connection succesful, update i/o ports
-                 (let-values (((i o) (tcp-connect host port)))
-                   (set! in i)
-                   (set! out o))))
+;(define max-attempts 10)
+;(define (try-connect (n 1))
+;  (when (>= n max-attempts)
+;    (eprintf "tcp-connect failed after ~a attempts~%" n)
+;    (exit))
+;  (with-handlers ((exn:fail:network?
+;                      (lambda (exn)
+;                        (eprintf "tcp-connect attempt ~a failed~%" n)
+;                        (sleep (* n 0.5))
+;                        (try-connect (add1 n)))))
+;                 ; connection succesful, update i/o ports
+;                 (let-values (((i o) (tcp-connect host port)))
+;                   (set! in i)
+;                   (set! out o))))
 
 ;; Struct for sending a request over TCP
 ;; msg contains the request
@@ -95,7 +111,7 @@
 
     (define/public (initialize setup-id)
       (info "initializing")
-      (try-connect)
+      (quick-connect)
       (put 'initialize setup-id))
 
     (define/public (start)
