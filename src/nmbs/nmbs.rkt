@@ -3,6 +3,7 @@
 (require racket/class
          racket/list
          "gui.rkt"
+         "robo-loco.rkt"
          "../railway/railway.rkt")
 
 (provide nmbs%)
@@ -44,8 +45,8 @@
 
     (define/public (get-switch-position id)
       (send (send railway get-switch id) get-position))
-    (define/public (set-switch-position id int)
-      (send (send railway get-switch id) set-position int))
+    (define/public (set-switch-position id pos)
+      (send (send railway get-switch id) set-position pos))
 
     (define (get-loco id)
       (send railway get-loco id))
@@ -86,6 +87,16 @@
     (define/public (get-loco-d-block id)
       (send infrabel get-loco-d-block id))
 
+    (define/public (update-loco-location loco-id curr-id (prev-id #f))
+      (if prev-id
+        (send (get-loco loco-id)
+              update-location
+              (send railway get-track curr-id)
+              (send railway get-track prev-id))
+        (send (get-loco loco-id)
+              update-location
+              (send railway get-track curr-id))))
+
     ; Get hash of spots where a new loco can be added,
     ; to be a valid spot, a detection block is needed whose local id and
     ; that of a connected segment match those imported through infrabel.
@@ -95,8 +106,19 @@
         (hash-keys starting-spots)
         '()))
 
-    (define/public (route loco dest)
-      void)
+    (define/public (route loco-id dest)
+      (let* ((loco (get-loco loco-id))
+             (route (send railway
+                          get-route
+                          (send loco get-location)
+                          (send railway get-d-block dest)))
+             (robo-loco (new robo-loco%
+                             (nmbs this)
+                             (loco loco)
+                             (route route))))
+        (displayln (send robo-loco start))))
+
+
 
     ; Update detection block statuses & loco speeds on regular intervals.
     (define (get-updates)
@@ -105,7 +127,7 @@
         (for ((notify (in-list d-block-listeners)))
           (notify (car db) (cdr db))))
       (for ((loco (in-list (get-loco-ids))))
-        (for ((notify (in-list (hash-ref loco-speed-listeners loco))))
+        (for ((notify (in-list (hash-ref loco-speed-listeners loco '()))))
           (notify (get-loco-speed loco))))
       (get-updates))
 
