@@ -95,6 +95,9 @@
         (hash-keys starting-spots)
         '()))
 
+    (define/public (route loco dest)
+      void)
+
     ; Update detection block statuses & loco speeds on regular intervals.
     (define (get-updates)
       (sleep 1)

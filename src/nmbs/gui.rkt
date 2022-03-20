@@ -17,6 +17,9 @@
     (define buffer-bmp (make-object bitmap% width height))
     (define buffer-bmp-dc (make-object bitmap-dc% buffer-bmp))
 
+    (define d-block-ids
+      (sort (send nmbs get-d-block-ids) id<?))
+
     (define/augment (on-close)
       (show #f)
       (atexit))
@@ -32,6 +35,7 @@
     (define loco-panel
       (new loco-panel%
            (nmbs nmbs)
+           (d-block-ids d-block-ids)
            (parent bottom-pane)))
 
     (define switch-panel
@@ -42,6 +46,7 @@
     (define d-block-panel
       (new d-block-panel%
            (nmbs nmbs)
+           (d-block-ids d-block-ids)
            (parent bottom-pane)))
 
     (inherit show)
@@ -79,7 +84,7 @@
 ;; main panel for the user to control locomotives
 (define loco-panel%
   (class panel%
-    (init-field nmbs)
+    (init-field nmbs d-block-ids)
     (super-new (enabled #t)
                (style '(border))
                (min-height 300)
@@ -189,9 +194,28 @@
            (enabled #t)
            (callback
              (lambda (slider evt)
+               (if (> (send slider get-value) 30)
+                 (send route-choice enable #f)
+                 (send route-choice enable #t))
                (when active-loco
                  (send nmbs set-loco-speed active-loco
                        (send slider get-value)))))))
+
+    (define route-choice
+      (new choice%
+           (label "Go to")
+           (parent loco-control)
+           (choices (map symbol->string d-block-ids))
+           (vert-margin 0)
+           (callback
+             (lambda (choice evt)
+               (thread (lambda ()
+                         (let ((idx (send choice get-selection)))
+                           (when (and idx active-loco)
+                             (send nmbs
+                                   route
+                                   active-loco
+                                   (list-ref d-block-ids idx))))))))))
 
     (define reverse-button
       (new button%
@@ -267,26 +291,27 @@
 
 (define d-block-panel%
   (class group-box-panel%
-    (init-field nmbs)
+    (init-field nmbs d-block-ids)
     (super-new (label "Detection blocks")
                (enabled #t)
                (min-width 120)
                (stretchable-width #f)
                (alignment '(center top)))
     (define d-block-gfx
-      (for/list ((db (in-list (sort (send nmbs get-d-block-ids) id<?))))
+      (for/list ((db (in-list d-block-ids)))
         (make-object db-light% (symbol->string db) (new bitmap-dc%))))
     (define dbs
-      (for/hash ((db (in-list (sort (send nmbs get-d-block-ids) id<?)))
+      (for/hash ((db (in-list d-block-ids))
                  (l (in-list d-block-gfx)))
         (send l set-status 'green)
         (values db l)))
     (define canvas
       (new canvas% (parent this)
-           (paint-callback (lambda (canvas dc)
-                             (for ((light (in-list d-block-gfx))
-                                   (i (in-range 3 1000 23)))
-                               (send dc draw-bitmap (send light get-bmp) 0 i))))))
+           (paint-callback
+             (lambda (canvas dc)
+               (for ((light (in-list d-block-gfx))
+                     (i (in-range 3 1000 23)))
+                 (send dc draw-bitmap (send light get-bmp) 0 i))))))
     (define (change-db id status)
       (send (hash-ref dbs id) set-status status)
       (send canvas refresh))
