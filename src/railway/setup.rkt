@@ -19,16 +19,20 @@
   ((setup-contents setup)))
 
 ;; Lists the files found in resource/setups.
-(define setup-files (directory-list setup-location #:build? #t))
+(define setup-files
+  (directory-list setup-location #:build? #t))
 
 ;; Lists the names of the files.
-(define setup-ids (map (lambda (x) (string->symbol (path->string x)))
-                       (directory-list setup-location)))
+(define setup-ids
+  (for/list ((id (directory-list setup-location)))
+    (string->symbol (path->string id))))
 
 ;; Reads input line by line, then splits every line
 ;; to evaluate later on, and filtering out any empty lines.
 (define (get-contents)
-  (filter pair? (map string-split (sequence->list (in-lines)))))
+  (for/list ((line (sequence-map string-split (in-lines)))
+             #:when (pair? line))
+    line))
 
 ;; List of all available setup structs.
 (define setups
