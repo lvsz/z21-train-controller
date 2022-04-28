@@ -1,6 +1,5 @@
 #lang racket/base
 
-
 (provide railway%
          track?
          d-block?
@@ -163,9 +162,10 @@
                   params))))))
 
 
-;; Special version of Dijkstra which assumes all edges are directed away from
-;; the source. If the shortest path doesn't require reversing the train, this
-;; will find it.
+;; Special version of Dijkstra which implicitly assumes all edges are directed
+;; away from the source when they're first enountered. If the shortest path
+;; between two detection blocks doesn't require reversing the train, this will
+;; find it.
 (define (dijkstra tracks start (avoid '()))
   (let ((dist (make-hash (list (cons start 0))))
         (prev (make-hash))
