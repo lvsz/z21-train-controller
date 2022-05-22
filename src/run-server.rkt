@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require "infrabel/server.rkt")
+(require "infrabel/server.rkt"
+         "logger.rkt")
 
 (define rpi-config "resources/tcp/raspberrypi.txt")
 (define local-config "resources/tcp/localhost.txt")
@@ -11,7 +12,7 @@
 (module* main #f
   (let ((host "localhost")
         (port #f)
-        (logging 'debug))
+        (log-level 'debug))
     (for ((arg (in-vector (current-command-line-arguments))))
       (case arg
         (("--rpi" "--raspberrypi" "-r")
@@ -21,12 +22,12 @@
          (set! host "localhost")
          (set! port (get-port local-config)))
         (("--debug" "-d")
-         (set! logging 'debug))
+         (set! log-level 'debug))
         (("--info" "-i")
-         (set! logging 'info))
+         (set! log-level 'info))
         (else
          (eprintf "Unrecognized argument: " arg))))
     (unless port
       (set! port (get-port local-config)))
-    (void (start-server port logging))))
+    (void (start-server port log-level))))
 

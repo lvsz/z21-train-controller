@@ -9,6 +9,7 @@
 
 (define infrabel%
   (class object%
+    (init-field (log-level #f))
     (super-new)
 
     (define railway #f)
@@ -117,5 +118,8 @@
         (cons (send d-block get-id) (send d-block get-status))))
 
     (define (get-track id)
-      (send railway get-track id))))
+      (send railway get-track id))
+
+    (define (prevent-collisions)
+      (void))))
 

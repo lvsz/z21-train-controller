@@ -8,7 +8,7 @@
          "infrabel.rkt"
          "../logger.rkt")
 
-(define infrabel (new infrabel%))
+(define infrabel #f)
 
 (define listener #f)
 (define in #f)
@@ -55,7 +55,7 @@
 
 ;; Reply and log message
 (define (reply response)
-  (log/d (format "sent \"~a\"~%" response))
+  (log/d (format "sent \"~a\"" response))
   (writeln response out)
   (flush-output out))
 
@@ -103,10 +103,11 @@
 ;; Initialize everything and start the server
 (define (start-server port (log-level 'debug))
   (when log-level
-    (set!-values (log/i log/d) (make-loggers 'infrabel-server))
+    (set!-values (log/i log/d) (make-loggers 'infrabel/server))
     (start-logger log-level))
   (log/i "Infrabel server activated")
   (log/i (format "Log level ~a" log-level))
+  (set! infrabel (new infrabel% (log-level log-level)))
   (with-handlers ((exn:break? stop))
                  (send infrabel initialize (setup port))
                  (begin0 (send infrabel start)

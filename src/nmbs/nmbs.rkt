@@ -4,14 +4,18 @@
          racket/list
          "gui.rkt"
          "robo-loco.rkt"
-         "../railway/railway.rkt")
+         "../railway/railway.rkt"
+         "../logger.rkt")
 
 (provide nmbs%)
 
 (define nmbs%
   (class object%
-    (init-field infrabel)
+    (init-field infrabel (log-level #f))
     (super-new)
+
+    (when log-level
+      (start-logger log-level))
 
     (define railway #f)
 
@@ -125,7 +129,7 @@
     ; Update detection block statuses & loco speeds on regular intervals.
     (define (get-updates)
       (sleep 1)
-      (for ((db (send infrabel get-d-block-statuses)))
+      (for ((db (in-list (send infrabel get-d-block-statuses))))
         (for ((notify (in-list d-block-listeners)))
           (notify (car db) (cdr db))))
       (for ((loco (in-list (get-loco-ids))))

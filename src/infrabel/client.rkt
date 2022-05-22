@@ -98,8 +98,7 @@
     (super-new)
 
     (when log-level
-      (set!-values (log/i log/d) (make-loggers 'infrabel-client))
-      (start-logger log-level))
+      (set!-values (log/i log/d) (make-loggers 'infrabel/client)))
 
     (define/public (initialize setup-id)
       (log/i "initializing")

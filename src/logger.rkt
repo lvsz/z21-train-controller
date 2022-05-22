@@ -6,9 +6,11 @@
          identity)
 
 (require racket/date
+         racket/file
          racket/match)
 
-(unless (directory-exists? "logs")
+(define log-directory "logs")
+(unless (directory-exists? log-directory)
   (make-directory "logs"))
 
 ;; Turns a number into a string,
@@ -51,10 +53,9 @@
 ;; Returns the log file's path for a given topic,
 ;; creating a new directory if necessary.
 (define (path topic date)
-  (let ((dir (format "logs/~a" topic)))
-    (unless (directory-exists? dir)
-      (make-directory dir))
-    (format "~a/~a.txt" dir date)))
+  (let ((dir (format "~a/~a" log-directory topic)))
+    (make-directory* dir)
+    (format "~a/~a.log" dir date)))
 
 (define logs (make-hash))
 
@@ -72,9 +73,13 @@
     (match (sync receiver)
       ((vector level msg _ topic)
        (let* ((date (date-string))
-              (out (get-file topic date)))
-         (fprintf out "[~a - ~a] {~a}\t~a~%" date (time-string) level msg)
-         (flush-output out))))
+              (out1 (get-file #\. date))
+              (out2 (get-file topic date))
+              (s (format "[~a - ~a] {~a}\t~a~%" date (time-string) level msg)))
+         (display s out1)
+         (display s out2)
+         (flush-output out1)
+         (flush-output out2))))
     (logging))
   (if logger-thread
     (error "start-logger: logger already running")

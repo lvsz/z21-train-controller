@@ -3,6 +3,7 @@
 (provide run-nmbs)
 
 (require racket/class
+         "logger.rkt"
          "nmbs/nmbs.rkt"
          "infrabel/infrabel.rkt"
          (prefix-in tcp: "infrabel/client.rkt")
@@ -15,13 +16,13 @@
 ;;     the server can be either localhost or raspberypi
 ;;   if #:setup = #f : gives the user a selection screen to pick a setup
 ;;   otherwise it will skip that step (assuming the given setup exists)
-(define (run-nmbs #:remote? (remote #f) #:setup (setup #f))
+(define (run-nmbs #:remote? (remote #f) #:setup (setup #f) #:log (log-level #f))
   (let ((setups (map path->string (directory-list "resources/setups/")))
         (args (current-command-line-arguments)))
     (let loop ((i 0))
       (unless (>= i (vector-length args))
         (case (vector-ref args i)
-          (("--hardware" "-h")
+          (("--hardware")
            (set! setup 'hardware)
            (loop (add1 i)))
           (("--setup")
@@ -38,6 +39,17 @@
           (("--list" "-l")
            (for-each displayln setups)
            (exit))
+          (("--log")
+           (let ((level (vector-ref args (add1 i))))
+             (case level
+               (("info")
+                (set! log-level 'info))
+               (("debug")
+                (set! log-level 'debug))
+               (else
+                (eprintf "Log level needs to be 'info' or 'debug', got: ~a~%" level)))))
+          (("--debug")
+           (set! log-level 'debug))
           (else
            (eprintf "Unrecognized argument: ~a~%" (vector-ref args i))
            (loop (add1 i)))))))
@@ -48,7 +60,7 @@
       (new raw:infrabel%)))
 
   (define nmbs
-    (new nmbs% (infrabel infrabel)))
+    (new nmbs% (infrabel infrabel) (log-level log-level)))
 
   (send nmbs start setup))
 
