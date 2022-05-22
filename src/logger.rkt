@@ -50,20 +50,19 @@
 
 ;; Returns the log file's path for a given topic,
 ;; creating a new directory if necessary.
-;: A new log file is created for each day.
-(define (path topic)
+(define (path topic date)
   (let ((dir (format "logs/~a" topic)))
     (unless (directory-exists? dir)
       (make-directory dir))
-    (format "~a/~a.txt" dir (date-string))))
+    (format "~a/~a.txt" dir date)))
 
 (define logs (make-hash))
 
 ;; Return relevant file, create it if necessary
-(define (get-file topic)
+(define (get-file topic date)
   (hash-ref! logs topic
              (lambda ()
-               (open-output-file (path topic) #:exists 'append))))
+               (open-output-file (path topic date) #:exists 'append))))
 
 (define logger-thread #f)
 
@@ -72,8 +71,9 @@
   (define (logging)
     (match (sync receiver)
       ((vector level msg _ topic)
-       (let ((out (get-file topic)))
-         (fprintf out "~a (~a) \t~a~%" (time-string) level msg)
+       (let* ((date (date-string))
+              (out (get-file topic date)))
+         (fprintf out "[~a - ~a] {~a}\t~a~%" (time-string) date level msg)
          (flush-output out))))
     (logging))
   (if logger-thread
