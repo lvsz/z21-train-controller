@@ -73,7 +73,7 @@
       ((vector level msg _ topic)
        (let* ((date (date-string))
               (out (get-file topic date)))
-         (fprintf out "[~a - ~a] {~a}\t~a~%" (time-string) date level msg)
+         (fprintf out "[~a - ~a] {~a}\t~a~%" date (time-string) level msg)
          (flush-output out))))
     (logging))
   (if logger-thread
