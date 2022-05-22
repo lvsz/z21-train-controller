@@ -53,13 +53,13 @@
               (let* ((req (thread-receive))
                      (msg (request-msg req))
                      (on-response (request-on-response req)))
-                (debug (format "requesting ~a" msg))
+                (log/d (format "requesting ~a" msg))
                 (writeln msg out)
                 (flush-output out)
                 (if on-response
                   (let ((response (read in)))
                     (unless (eof-object? response)
-                      (debug (format "response for ~a: ~a" msg response))
+                      (log/d (format "response for ~a: ~a" msg response))
                       (on-response response)
                       (loop)))
                   (loop)))))))
@@ -86,8 +86,8 @@
 
 
 ;; Logging function that can be enabled
-(define info identity)
-(define debug identity)
+(define log/i identity)
+(define log/d identity)
 
 
 ;; For interchangeability purposes, this has the exact same interface
@@ -98,11 +98,11 @@
     (super-new)
 
     (when log-level
-      (set!-values (info debug) (make-loggers 'infrabel-client))
+      (set!-values (log/i log/d) (make-loggers 'infrabel-client))
       (start-logger log-level))
 
     (define/public (initialize setup-id)
-      (info "initializing")
+      (log/i "initializing")
       (quick-connect)
       (put 'initialize setup-id))
 

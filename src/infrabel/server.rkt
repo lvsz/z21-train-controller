@@ -23,7 +23,9 @@
   (let loop ()
     (let ((msg (get-msg)))
       (case (car msg)
-        ((initialize) (cadr msg))
+        ((initialize)
+         (log/i (format "Connection established on port ~a" port))
+         (cadr msg))
         (else (loop))))))
 
 
@@ -48,19 +50,18 @@
 ;; Receive and log message
 (define (get-msg)
   (let ((msg (read in)))
-    (log/i (format "received message: ~a" msg))
+    (log/d (format "received \"~a\"" msg))
     msg))
 
 ;; Reply and log message
 (define (reply response)
-  (log/i (format "sent messgage: ~a~%" response))
+  (log/d (format "sent \"~a\"~%" response))
   (writeln response out)
   (flush-output out))
 
 
 ;; Parse any received messages and respond appropriately
 (define (run)
-  (log/i "Infrabel server activated")
   (let loop ((msg (get-msg)))
     (when (eof-object? msg)
       (stop msg))
@@ -104,8 +105,11 @@
   (when log-level
     (set!-values (log/i log/d) (make-loggers 'infrabel-server))
     (start-logger log-level))
+  (log/i "Infrabel server activated")
+  (log/i (format "Log level ~a" log-level))
   (with-handlers ((exn:break? stop))
                  (send infrabel initialize (setup port))
                  (begin0 (send infrabel start)
+                         (log/i "Infrabel started")
                          (thread run))))
 
