@@ -143,20 +143,16 @@
 
     (define update-thread #f)
 
-    ; Calling this methid will initialise the nmbs% instance
+    ; Calling this method will initialise the nmbs% instance
     ; and then start up the application, including GUI.
     (define/public (start (setup-id #f))
       (define (_start)
-        (let loop ()
-          (if setup-id
-            (begin (set! railway (make-object railway% setup-id))
-                   (send infrabel initialize setup-id)
-                   (set! starting-spots (find-starting-spots infrabel railway))
-                   (new window%
-                        (nmbs this)
-                        (atexit (lambda () (send this stop)))))
-            (begin (sleep 0.1)
-                   (loop))))
+        (send infrabel initialize setup-id)
+        (set! railway (make-object railway% setup-id))
+        (set! starting-spots (find-starting-spots infrabel railway))
+        (new window%
+             (nmbs this)
+             (atexit (lambda () (send this stop))))
         (send infrabel start)
         ;; add callback to switches to notify listeners & infrabel when changed
         (for ((switch (in-list (send railway get-switches))))
