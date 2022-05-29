@@ -23,14 +23,14 @@
 
          get-detection-block-ids
          get-switch-ids
-         
+
          add-loco
          remove-loco
-         
+
          get-loco-speed
          set-loco-speed!
          get-loco-detection-block
-         
+
          get-switch-position
          set-switch-position!)
 

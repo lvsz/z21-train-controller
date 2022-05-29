@@ -69,14 +69,14 @@
       (for-each
        (lambda (train)
          (send train move (/ delta-time 1000)))
-       TRAINS)      
+       TRAINS)
       (draw-all-trains)
       (send WINDOW refresh-all)
       (send WINDOW set-frame-title (string-append "FPS: " (number->string (round (/ 1000 delta-time)))))
       (if CONTINUE?
           (send game-loop-timer start wait-per-frame #t)
           (end-simulator)))
-    
+
     (set! game-loop-timer
           (new timer% [notify-callback simulator-loop]))
     (send game-loop-timer start wait-per-frame #t)))

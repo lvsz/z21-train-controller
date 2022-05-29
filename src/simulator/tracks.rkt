@@ -66,7 +66,7 @@
            [y2 'uninitialized]
            [start-orientation 'uninitialized]
            [end-orientation 'uninitialized])
-    
+
     (define (build x y orientation)
       (values x
               y
@@ -74,19 +74,19 @@
               (+ x (* length (cos orientation)))
               (- y (* length (sin orientation)))
               orientation))
-    
+
     (define/public (build-from-start-point xp yp orientation)
       (set!-values (x y start-orientation x2 y2 end-orientation) (build xp yp orientation)))
-    
+
     (define/public (build-from-end-point xp yp orientation)
       (set!-values (x2 y2 end-orientation x y start-orientation) (build xp yp orientation)))
-    
+
     (define/public (start-point-orientation)
       (list x y start-orientation))
-    
+
     (define/public (end-point-orientation)
       (list x2 y2 end-orientation))
-    
+
     (define/public (move-along-track distance from-start?)
       (if (> distance length)
           (- distance length)
@@ -95,10 +95,10 @@
                     (- y (* distance (sin end-orientation))))
               (cons (+ x2 (* distance (cos start-orientation)))
                     (- y2 (* distance (sin start-orientation)))))))
-    
+
     (define/public (get-length)
       length)
-    
+
     (define/public (draw window dc-id pen-id)
       (send window draw-line dc-id pen-id x y x2 y2))))
 
@@ -116,7 +116,7 @@
            [start-orientation 'uninitialized]
            [end-orientation 'uninitialized]
            [arc 'uninitialized])
-    
+
     (define (build x y orientation angle)
       (let* ((mx (+ x (* radius (cos (- (/ pi 2) orientation)))))
              (my (+ y (* radius (sin (- (/ pi 2) orientation)))))
@@ -133,7 +133,7 @@
                 mx
                 my
                 (list (- mx radius) (- my radius) (* 2 radius) (* 2 radius) start-radians end-radians))))
-    
+
     (define (build-inverted x y orientation angle)
       (let* ((mx (- x (* radius (cos (- (/ pi 2) orientation)))))
              (my (- y (* radius (sin (- (/ pi 2) orientation)))))
@@ -150,47 +150,47 @@
                 mx
                 my
                 (list (- mx radius) (- my radius) (* 2 radius) (* 2 radius) start-radians end-radians))))
-    
+
     (define/public (build-from-start-point xp yp orientation)
       (if (not inverted)
           (set!-values (x y start-orientation x2 y2 end-orientation mx my arc) (build xp yp orientation angle))
           (set!-values (x y start-orientation x2 y2 end-orientation mx my arc) (build-inverted xp yp orientation angle))))
-    
+
     (define/public (build-from-end-point xp yp orientation)
       (if (not inverted)
           (set!-values (x2 y2 end-orientation x y start-orientation mx my arc) (build-inverted xp yp orientation angle))
           (set!-values (x2 y2 end-orientation x y start-orientation mx my arc) (build xp yp orientation angle))))
-    
+
     (define/public (start-point-orientation)
       (list x y start-orientation))
-    
+
     (define/public (end-point-orientation)
       (list x2 y2 end-orientation))
-    
+
     (define (move-from-start distance)
       (let* ((angle (/ distance radius))
              (orientation (remainder-2pi (+ pi (if inverted end-orientation start-orientation))))
              (cx (+ mx (* radius (cos (- (+ (/ pi 2) orientation) angle)))))
              (cy (- my (* radius (sin (- (+ (/ pi 2) orientation) angle))))))
         (cons cx cy)))
-    
+
     (define (move-from-end distance)
       (let* ((angle (/ distance radius))
              (orientation (remainder-2pi (+ pi (if inverted start-orientation end-orientation))))
              (cx (+ mx (* radius (cos (+ (+ (/ (* 3 pi) 2) orientation) angle)))))
              (cy (- my (* radius (sin (+ (+ (/ (* 3 pi) 2) orientation) angle))))))
         (cons cx cy)))
-    
+
     (define/public (move-along-track distance from-start?)
       (if (> distance (* radius angle))
           (- distance (* radius angle))
           (if (xor from-start? inverted)
               (move-from-start distance)
               (move-from-end distance))))
-    
+
     (define/public (get-length)
       (* radius angle))
-    
+
     (define/public (draw window dc-id pen-id)
       (send/apply window draw-arc (cons dc-id (cons pen-id arc))))))
 
@@ -199,32 +199,32 @@
   (class object%
     (super-new)
     (init-field tracks)
-    
+
     (define gui-tracks
       (map (lambda (track)
              (send track build-gui-track))
            tracks))
-    
+
     (define/public (build-from-start-point x y orientation)
       (let loop ((tracks gui-tracks)
                  (start-point (list x y orientation)))
         (when (not (null? tracks))
           (send/apply (car tracks) build-from-start-point start-point)
           (loop (cdr tracks) (send (car tracks) end-point-orientation)))))
-    
+
     (define/public (build-from-end-point x y orientation)
       (let loop ((tracks (reverse gui-tracks))
                  (end-point (list x y orientation)))
         (when (not (null? tracks))
           (send/apply (car tracks) build-from-end-point end-point)
           (loop (cdr tracks) (send (car tracks) start-point-orientation)))))
-    
+
     (define/public (start-point-orientation)
       (send (car gui-tracks) start-point-orientation))
-    
+
     (define/public (end-point-orientation)
       (send (last gui-tracks) end-point-orientation))
-    
+
     (define/public (move-along-track distance from-start?)
       (let loop ((tracks (if from-start? gui-tracks (reverse gui-tracks)))
                  (d distance))
@@ -232,14 +232,14 @@
           (if (or (pair? p-or-d) (null? (cdr tracks)))
               p-or-d
               (loop (cdr tracks) p-or-d)))))
-    
+
     (define/public (get-length)
       (foldl
        (lambda (track result)
          (+ result (send track get-length)))
        0
        gui-tracks))
-    
+
     (define/public (draw . context)
       (for-each (lambda (track)
                   (send/apply track draw context))
@@ -256,14 +256,14 @@
     (field [start-connection 'uninitialized]
            [end-connection 'uninitialized]
            [color 'black])
-    
+
     (define gui-track
       (if (pair? tracks)
           (make-object gui-section% tracks)
           (send tracks build-gui-track)))
-    
+
     (define visited #f)
-    
+
     (define/public (build-gui-track from x y orientation)
       (when (not visited)
         (set! visited #t)
@@ -275,7 +275,7 @@
           (send gui-track build-from-end-point x y orientation)
           (when (not (eq? start-connection 'uninitialized))
             (send/apply start-connection build-gui-track (cons this (send gui-track start-point-orientation)))))))
-    
+
     (define/public (initiate-build x y orientation)
       (set! visited #t)
       (send gui-track build-from-start-point x y orientation)
@@ -283,17 +283,17 @@
         (send/apply end-connection build-gui-track (cons this (send gui-track end-point-orientation))))
       (when (not (eq? start-connection 'uninitialized))
         (send/apply start-connection build-gui-track (cons this (send gui-track start-point-orientation)))))
-    
+
     (define/public (start-connector)
       (cons this
             (lambda (track)
               (set! start-connection track))))
-    
+
     (define/public (end-connector)
       (cons this
             (lambda (track)
               (set! end-connection track))))
-    
+
     (define/public (move-along-track from distance)
       (if (eq? from start-connection)
           (let ((p-or-d (send gui-track move-along-track distance #t)))
@@ -308,18 +308,18 @@
                 (if (not (eq? start-connection 'uninitialized))
                     (send start-connection move-along-track this p-or-d)
                     (error "Train Crash"))))))
-    
+
     (define/public (get-next-track from)
       (if (eq? from start-connection)
           end-connection
           start-connection))
-    
+
     (define/public (get-length from)
       (send gui-track get-length))
-    
+
     (define/public (set-color new-color)
       (set! color new-color))
-    
+
     (define/public (draw . context)
       (send/apply gui-track draw (append context (list color))))))
 
@@ -338,18 +338,18 @@
            [end-connections  (make-vector (length (get-field tracks switch-track)) 'uninitialized)]
            [active-color 'green]
            [inactive-color 'red])
-    
+
     (define switch-position 0)
-    
+
     (define gui-tracks
       (map (lambda (tracks)
              (if (pair? tracks)
                  (make-object gui-section% tracks)
                  (send tracks build-gui-track)))
            (get-field tracks switch-track)))
-    
+
     (define visited #f)
-    
+
     (define/public (build-gui-track from x y orientation)
       (when (not visited)
         (set! visited #t)
@@ -380,17 +380,17 @@
                         (when (not (eq? end-connection 'uninitialized))
                           (send/apply end-connection build-gui-track (cons this (send track end-point-orientation))))))
                     (loop (cdr tracks) (+ j 1)))))))))
-    
+
     (define/public (start-connector)
       (cons this
             (lambda (track)
               (set! start-connection track))))
-    
+
     (define/public (end-connector track-index)
       (cons this
             (lambda (track)
               (vector-set! end-connections track-index track))))
-    
+
     (define/public (move-along-track from distance)
       (if (eq? from start-connection)
           (let* ((track (list-ref gui-tracks switch-position))
@@ -409,29 +409,29 @@
                 (if (not (eq? start-connection 'uninitialized))
                     (send start-connection move-along-track this p-or-d)
                     (error "Train Crash"))))))
-    
+
     (define/public (get-next-track from)
       (if (eq? from start-connection)
           (vector-ref end-connections switch-position)
           start-connection))
-    
+
     (define/public (get-length from)
       (if (eq? from start-connection)
           (send (list-ref gui-tracks switch-position) get-length)
           (let* ((i (index-of from end-connections))
                  (track (list-ref gui-tracks i)))
             (send track get-length))))
-    
+
     (define/public (set-switch-position position)
       (set! switch-position position))
-    
+
     (define/public (get-switch-position)
       switch-position)
-    
+
     (define/public (set-colors active inactive)
       (set! active-color active)
       (set! inactive-color inactive))
-    
+
     (define/public (draw . context)
       (let loop ((l gui-tracks)
                  (i 0))

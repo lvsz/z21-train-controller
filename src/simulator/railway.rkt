@@ -90,7 +90,7 @@
     (define/public (get-switch-ids)
       (map (lambda (block)
              (get-field id block))
-           switches))      
+           switches))
     (define/public (draw-all . context)
       (for-each
        (lambda (segment)
@@ -127,7 +127,7 @@
   (define U-5 (make-object block% 'U-5 (list G231 G231 G231)))
   (define U-6 (make-object block% 'U-6 G231))
   (define U-7 (make-object block% 'U-7 (list G231 G231 G231)))
-  
+
   (define S-1   (make-object switch% 'S-1 WL))
   (define S-2-3 (make-object switch% 'S-2-3 W3))
   (define S-4   (make-object switch% 'S-4 (reverse-indeces WR)))
@@ -147,7 +147,7 @@
   (define S-26  (make-object switch% 'S-26 BWR))
   (define S-27  (make-object switch% 'S-27 (reverse-indeces BWR)))
   (define S-28  (make-object switch% 'S-28 BWL))
-  
+
   (connect (end   S-26 0) (start U-1   ))
   (connect (end   S-26 1) (start S-27  ))
   (connect (end   S-27 1) (start 1-2   ))
@@ -196,20 +196,20 @@
   (connect (end   S-8  1) (start S-4    ))
   (connect (end   S-4  1) (start 2-7    ))
   (connect (end   S-4  0) (start 2-6    ))
-  
-  
+
+
   ;; S-2 and S-3 are bundled into one switch S-2-3 with 3 positions in our implementation
   (define S-2-position 0)
   (define S-3-position 0)
-  
+
   (define (update-switch-2-3)
     (if (= S-2-position 0)
         (send S-2-3 set-switch-position 0)
         (if (= S-3-position 0)
             (send S-2-3 set-switch-position 1)
             (send S-2-3 set-switch-position 2))))
-  
-  
+
+
   (define hw-railway%
     (class railway%
       (inherit-field segments switches detection-blocks)
@@ -222,36 +222,36 @@
                (set! S-3-position (- position 1))
                (update-switch-2-3))
               (else (super set-switch-position! id position))))
-      
+
       (define/override (get-switch-position id)
         (cond ((eq? id 'S-2)
                (+ S-2-position 1))
               ((eq? id 'S-3)
                (+ S-3-position 1))
               (else (super get-switch-position id))))))
-  
+
   (define SEGMENTS
     (list 1-1  1-2   1-3  1-4  1-5  1-6  1-7  1-8
           2-1  2-2   2-3  2-4  2-5  2-6  2-7  2-8
           U-1  U-2   U-3  U-4  U-5  U-6  U-7
           S-1  S-2-3      S-4  S-5  S-6  S-7  S-8  S-9 S-10 S-11 S-12 S-16
           S-20       S-23 S-24 S-25 S-26 S-27 S-28))
-  
+
   (define SWITCHES
     (list S-1  S-2-3      S-4  S-5  S-6  S-7  S-8  S-9 S-10 S-11 S-12 S-16
           S-20       S-23 S-24 S-25 S-26 S-27 S-28))
-  
+
   (define DETECTION-BLOCKS
     (list 1-1  1-2   1-3  1-4  1-5  1-6  1-7  1-8
           2-1  2-2   2-3  2-4  2-5  2-6  2-7  2-8))
-  
+
   (for-each (lambda (block)
               (send block set-color 'blue))
             DETECTION-BLOCKS)
-  
+
   (define UNDEFINED-BLOCKS
     (list U-1  U-2   U-3  U-4  U-5  U-6  U-7))
-  
+
   (set! RAILWAY (make-object hw-railway% SEGMENTS SWITCHES DETECTION-BLOCKS)))
 
 
@@ -273,11 +273,11 @@
   (define SEGMENTS (list D1 D2 T D3 D4))
   (define SWITCHES '())
   (define DETECTION-BLOCKS (list D1 D2 D3 D4))
-  
+
   (for-each (lambda (block)
               (send block set-color 'blue))
             DETECTION-BLOCKS)
-  
+
   (set! RAILWAY (make-object railway% SEGMENTS SWITCHES DETECTION-BLOCKS)))
 
 ;; *********************************** ;;
@@ -300,11 +300,11 @@
   (define SEGMENTS (list D1 S1 D4 D5 D6 D7))
   (define SWITCHES (list S1))
   (define DETECTION-BLOCKS (list D1 D4 D5 D6 D7))
-  
+
   (for-each (lambda (block)
               (send block set-color 'blue))
             DETECTION-BLOCKS)
-  
+
   (set! RAILWAY (make-object railway% SEGMENTS SWITCHES DETECTION-BLOCKS)))
 
 ;; ******************** ;;
@@ -322,7 +322,7 @@
   (define D7 (make-object block% 'D7 G231))
   (define D8 (make-object block% 'D8 (list R2 R2 R2)))
   (define T2 (make-object block% 'T2 (list G231 G231)))
-  
+
   (connect (end D1) (start D2))
   (connect (end D2) (start D3))
   (connect (end D3) (start D4))
@@ -337,11 +337,11 @@
   (define SEGMENTS (list T1 D6 D7 D8 T2 D1 D2 D3 D4 D5))
   (define SWITCHES '())
   (define DETECTION-BLOCKS (list D1 D2 D3 D4 D5 D6 D7 D8))
-  
+
   (for-each (lambda (block)
               (send block set-color 'blue))
             DETECTION-BLOCKS)
-  
+
   (set! RAILWAY (make-object railway% SEGMENTS SWITCHES DETECTION-BLOCKS)))
 
 ;; ********************************* ;;
@@ -361,7 +361,7 @@
   (define D6 (make-object block%  'D6 G231))
   (define S2 (make-object switch% 'S2 BWL))
   (define U3 (make-object block%  'U3 (list R2 R2)))
-  (define U4 (make-object block%  'U4 (list R2 R2))) 
+  (define U4 (make-object block%  'U4 (list R2 R2)))
   (define T2 (make-object block%  'T2 G231))
   (define T3 (make-object block%  'T3 G231))
   (define S3 (make-object switch% 'S3 WL))
@@ -369,7 +369,7 @@
   (define D8 (make-object block%  'D8 R9))
   (define D9 (make-object block%  'D9 G231))
 
-  
+
   (connect (end   D1  ) (start D2  ))
   (connect (end   D2  ) (start D3  ))
   (connect (end   D3  ) (start D4  ))
@@ -395,9 +395,9 @@
   (define SEGMENTS (list T1 D5 D6 U3 S2 T2 D1 D2 D3 D4 S1 U1 U2 T3 S3 D7 U4 D8 D9))
   (define SWITCHES (list S1 S2 S3))
   (define DETECTION-BLOCKS (list D1 D2 D3 D4 D5 D6 D7 D8 D9))
-  
+
   (for-each (lambda (block)
               (send block set-color 'blue))
             DETECTION-BLOCKS)
-  
+
   (set! RAILWAY (make-object railway% SEGMENTS SWITCHES DETECTION-BLOCKS)))
