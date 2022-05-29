@@ -12,10 +12,8 @@
 
 (define log-directory "logs")
 
-
 ;; Make use of Racket logging functionality
-(define logger
-  (make-logger))
+(define logger (make-logger))
 
 ;; Returns two functions,
 ;; the first one to log info messages for the given topic,

@@ -11,7 +11,7 @@
 
 (define nmbs%
   (class object%
-    (init-field infrabel (log-level #f))
+    (init-field infrabel (log-level 'info))
     (super-new)
 
     (when log-level

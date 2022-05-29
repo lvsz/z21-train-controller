@@ -15,7 +15,9 @@
 ;;     the server can be either localhost or raspberypi
 ;;   if #:setup = #f : gives the user a selection screen to pick a setup
 ;;   otherwise it will skip that step (assuming the given setup exists)
-(define (run-nmbs #:remote? (remote #f) #:setup (setup #f) #:log (log-level #f))
+(define (run-nmbs #:remote? (remote #f)
+                  #:setup (setup #f)
+                  #:log (log-level 'info))
   (let ((setups (map path->string (directory-list "resources/setups/")))
         (args (current-command-line-arguments)))
     (let loop ((i 0))
