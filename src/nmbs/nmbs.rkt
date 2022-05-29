@@ -83,11 +83,12 @@
         loco-id))
 
     (define/public (remove-loco loco-id)
-      (send infrabel remove-loco loco-id)
-      (send railway remove-loco loco-id)
-      (thread-suspend update-thread)
-      (hash-remove! loco-speed-listeners loco-id)
-      (thread-resume update-thread))
+      (thread-send
+        update-thread
+        (lambda ()
+          (send infrabel remove-loco loco-id)
+          (send railway remove-loco loco-id)
+          (hash-remove! loco-speed-listeners loco-id))))
 
     (define/public (get-loco-d-block id)
       (send infrabel get-loco-d-block id))
@@ -128,7 +129,8 @@
 
     ; Update detection block statuses & loco speeds on regular intervals.
     (define (get-updates)
-      (sleep 1)
+      (when (sync/timeout 1 (thread-receive-evt))
+        ((thread-receive)))
       (for ((db (in-list (send infrabel get-d-block-statuses))))
         (for ((notify (in-list d-block-listeners)))
           (notify (car db) (cdr db))))

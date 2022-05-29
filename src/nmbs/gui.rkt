@@ -252,8 +252,9 @@
            (callback
              (lambda (btn evt)
                (when active-loco
-                 (send nmbs remove-loco active-loco)
-                 (remove-loco-from-menu!))))))))
+                 (let ((loco active-loco))
+                   (remove-loco-from-menu!)
+                   (send nmbs remove-loco loco)))))))))
 
 
 ;; main panel to control the railway's switches
