@@ -111,7 +111,7 @@
   (log/i (format "Log level ~a" log-level))
   (set! infrabel (new infrabel% (log-level log-level)))
   (with-handlers ((exn:break? stop))
-                 (send/apply infrabel initialize (init-args port))
+                 (send/apply infrabel initialize (init-args))
                  (begin0 (send infrabel start)
                          (log/i "Infrabel started")
                          (thread run))))
