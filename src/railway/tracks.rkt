@@ -178,10 +178,10 @@
     (update-nodes! track-1 this)
     (update-nodes! track-2 this)
 
-    (define current-position track-1)
+    (define current-track track-1)
 
     (define/public (get-position)
-      (if (eq? current-position track-1)
+      (if (eq? current-track track-1)
         1
         2))
 
@@ -199,7 +199,7 @@
                         (error "set-position: Invalid switch position" pos)))))
           (unless (eq? superior this)
             (send superior set-position this))
-          (set! current-position t)
+          (set! current-track t)
           (callback id (get-position)))))
 
     ;; Safe to save nodes, as they can no longer change
@@ -212,7 +212,7 @@
         (remq (top-track this) (apply set-union tracks))))
 
     (define/override (from track)
-      (send current-position from track))
+      (send current-track from track))
 
     ;; Returns a list of simple tracks that can be entered from another track
     (define/public (options-from track)
@@ -222,7 +222,7 @@
                 options)))
 
     (define/override (get-length)
-      (send current-position get-length))
+      (send current-track get-length))
 
     ; A function that get called every time the switch changes position
     (define callback void)
