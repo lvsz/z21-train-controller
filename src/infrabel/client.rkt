@@ -100,10 +100,10 @@
     (when log-level
       (set!-values (log/i log/d) (make-loggers 'infrabel/client)))
 
-    (define/public (initialize setup-id)
+    (define/public (initialize setup-id (mode 'sim))
       (log/i "initializing")
       (quick-connect)
-      (put 'initialize setup-id))
+      (put 'initialize setup-id mode))
 
     (define/public (start)
       (void))

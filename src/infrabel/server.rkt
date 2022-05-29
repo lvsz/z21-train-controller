@@ -25,7 +25,7 @@
       (case (car msg)
         ((initialize)
          (log/i (format "Connection established on port ~a" port))
-         (cadr msg))
+         (cdr msg))
         (else (loop))))))
 
 
@@ -109,7 +109,7 @@
   (log/i (format "Log level ~a" log-level))
   (set! infrabel (new infrabel% (log-level log-level)))
   (with-handlers ((exn:break? stop))
-                 (send infrabel initialize (setup port))
+                 (send/apply infrabel initialize (setup port))
                  (begin0 (send infrabel start)
                          (log/i "Infrabel started")
                          (thread run))))

@@ -5,6 +5,7 @@
 (require racket/class
          racket/list
          "../railway/railway.rkt"
+         (prefix-in z21: "../z21/interface.rkt")
          (prefix-in sim: "../simulator/interface.rkt"))
 
 (define infrabel%
@@ -14,28 +15,59 @@
 
     (define railway #f)
 
-    (define ext:start-simulator      sim:start)
-    (define ext:stop-simulator       sim:stop)
-    (define ext:get-loco-d-block     sim:get-loco-detection-block)
-    (define ext:get-loco-speed       sim:get-loco-speed)
-    (define ext:set-loco-speed!      sim:set-loco-speed!)
-    (define ext:set-switch-position! sim:set-switch-position!)
-    (define ext:get-switch-position  sim:get-switch-position)
-    (define ext:add-loco             sim:add-loco)
-    (define ext:remove-loco          sim:remove-loco)
-    (define ext:get-d-block-ids      sim:get-detection-block-ids)
-    (define ext:get-switch-ids       sim:get-switch-ids)
+    (define ext:start-simulator      void)
+    (define ext:stop-simulator       void)
+    (define ext:get-loco-d-block     void)
+    (define ext:get-loco-speed       void)
+    (define ext:set-loco-speed!      void)
+    (define ext:set-switch-position! void)
+    (define ext:get-switch-position  void)
+    (define ext:add-loco             void)
+    (define ext:remove-loco          void)
+    (define ext:get-d-block-ids      void)
+    (define ext:get-switch-ids       void)
 
-    (define/public (initialize setup-id)
-      (set! railway (make-object railway% setup-id))
+    (define (simulation-mode setup-id)
       (case setup-id
-          ((hardware)             (sim:setup-hardware))
-          ((straight)             (sim:setup-straight))
-          ((straight-with-switch) (sim:setup-straight-with-switch))
-          ((loop)                 (sim:setup-loop))
-          ((loop-and-switches)    (sim:setup-loop-and-switches))
-          (else                   (error
-                                    (format "Setup ~a not found" setup-id))))
+        ((hardware)             (sim:setup-hardware))
+        ((straight)             (sim:setup-straight))
+        ((straight-with-switch) (sim:setup-straight-with-switch))
+        ((loop)                 (sim:setup-loop))
+        ((loop-and-switches)    (sim:setup-loop-and-switches))
+        (else (error (format "Setup ~a not found" setup-id))))
+      (set! ext:start-simulator      sim:start)
+      (set! ext:stop-simulator       sim:stop)
+      (set! ext:get-loco-d-block     sim:get-loco-detection-block)
+      (set! ext:get-loco-speed       sim:get-loco-speed)
+      (set! ext:set-loco-speed!      sim:set-loco-speed!)
+      (set! ext:set-switch-position! sim:set-switch-position!)
+      (set! ext:get-switch-position  sim:get-switch-position)
+      (set! ext:add-loco             sim:add-loco)
+      (set! ext:remove-loco          sim:remove-loco)
+      (set! ext:get-d-block-ids      sim:get-detection-block-ids)
+      (set! ext:get-switch-ids       sim:get-switch-ids))
+
+    (define (z21-mode)
+      (set! ext:start-simulator      z21:start)
+      (set! ext:stop-simulator       z21:stop)
+      (set! ext:get-loco-d-block     z21:get-loco-detection-block)
+      (set! ext:get-loco-speed       z21:get-loco-speed)
+      (set! ext:set-loco-speed!      z21:set-loco-speed!)
+      (set! ext:set-switch-position! z21:set-switch-position!)
+      (set! ext:get-switch-position  z21:get-switch-position)
+      (set! ext:add-loco             z21:add-loco)
+      (set! ext:remove-loco          void)
+      (set! ext:get-d-block-ids
+            (lambda () (send railway get-d-block-ids)))
+      (set! ext:get-switch-ids
+            (lambda () (send railway get-switch-ids))))
+
+    (define/public (initialize setup-id (mode 'sim))
+      (case mode
+        ((z21) (z21-mode))
+        ((sim) (simulation-mode setup-id))
+        (else (error (format "initialize: ~a is not a valid mode" mode))))
+      (set! railway (make-object railway% setup-id))
       (ext:start-simulator)
       'initialized)
 
