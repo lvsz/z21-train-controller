@@ -80,16 +80,16 @@
     (define running #f)
 
     (define/public (start)
+      (define (infrabel-loop)
+        (for ((loco (in-list (send railway get-locos))))
+          (get-loco-d-block (send loco get-id)))
+        (sleep 1)
+        (when running (infrabel-loop)))
       (for ((switch (in-list (send railway get-switches))))
         ; TODO: set hardware positions instead of getting them
         (send switch set-position (ext:get-switch-position (send switch get-id))))
       (set! running #t)
-      (thread (lambda ()
-                (let loop ()
-                  (for ((loco (in-list (send railway get-locos))))
-                    (get-loco-d-block (send loco get-id)))
-                  (sleep 1)
-                  (when running (loop))))))
+      (void (thread infrabel-loop)))
 
     (define/public (stop)
       (set! running #f)
