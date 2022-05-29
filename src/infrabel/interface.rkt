@@ -7,12 +7,12 @@
 
 (define infrabel-interface<%>
   (interface ()
-    (start (->m thread?))
-    (stop  (->m any/c))
+    (start (->m void?))
+    (stop  (->m any))
     (initialize   (->m symbol? symbol? void?))
     (initialized? (->m boolean?))
-    (add-loco    (->m symbol? symbol? symbol? void?))
-    (remove-loco (->m symbol? void?))
+    (add-loco     (->m symbol? symbol? symbol? void?))
+    (remove-loco  (->m symbol? void?))
     (get-loco-speed (->m symbol? integer?))
     (set-loco-speed (->m symbol? integer? void?))
     (get-loco-d-block (->m symbol? (or/c symbol? #f)))
