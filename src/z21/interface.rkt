@@ -1,4 +1,4 @@
-rlang racket
+#lang racket
 
 (require racket/dict)
 
