@@ -2,8 +2,7 @@
 
 (provide make-loggers
          start-logger
-         stop-logger
-         identity)
+         stop-logger)
 
 (require racket/date
          racket/file
@@ -32,6 +31,22 @@
     ((date* _ _ _ d m y _ _ _ _ _ _)
      (format "~a-~a-~a" y (pad0 m) (pad0 d)))))
 
+(define (msg->string
+          msg
+          #:prefix   (prefix   "")
+          #:interfix (interfix " ")
+          #:suffix   (suffix   ""))
+  (if (null? msg)
+    suffix
+    (string-append
+      prefix
+      (format "~a" (car msg))
+      (msg->string (cdr msg)
+                   #:prefix   interfix
+                   #:interfix interfix
+                   #:suffix   suffix))))
+
+
 (define logger
   (make-logger))
 
@@ -39,16 +54,12 @@
 ;; the first one to log info messages for the given topic,
 ;; the second one to log debug messages for the given topic.
 (define (make-loggers topic)
-  (define (info msg)
-    (log-message logger 'info topic (format "~a" msg))
-    msg)
-  (define (debug msg)
-    (log-message logger 'debug topic (format "~a" msg))
-    msg)
+  (define (info . msg)
+    (log-message logger 'info topic (msg->string msg)))
+  (define (debug . msg)
+    (log-message logger 'debug topic (msg->string msg)))
   (values info debug))
 
-;; Identity function can be used as a placeholder for logging functions.
-(define identity (lambda (x) x))
 
 ;; Returns the log file's path for a given topic,
 ;; creating a new directory if necessary.
@@ -92,3 +103,4 @@
            (for ((file (in-hash-values logs)))
              (close-input-port file)))
     (error "stop-logger: logger not running")))
+
