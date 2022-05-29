@@ -145,9 +145,9 @@
 
     ; Calling this method will initialise the nmbs% instance
     ; and then start up the application, including GUI.
-    (define/public (start (setup-id #f))
+    (define/public (start #:setup-id (setup-id #f) #:mode (mode 'sim))
       (define (_start)
-        (send infrabel initialize setup-id)
+        (send infrabel initialize setup-id mode)
         (set! railway (make-object railway% setup-id))
         (set! starting-spots (find-starting-spots infrabel railway))
         (new window%

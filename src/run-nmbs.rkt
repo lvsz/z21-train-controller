@@ -62,7 +62,7 @@
   (define nmbs
     (new nmbs% (infrabel infrabel) (log-level log-level)))
 
-  (send nmbs start setup))
+  (send nmbs start #:setup-id setup))
 
 
 ;; Doesn't run when imported as a module elsewhere
