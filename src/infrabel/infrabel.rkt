@@ -4,19 +4,20 @@
 
 (require racket/class
          racket/list
+         "interface.rkt"
          "../railway/railway.rkt"
          (prefix-in z21: "../z21/interface.rkt")
          (prefix-in sim: "../simulator/interface.rkt"))
 
 (define infrabel%
-  (class object%
+  (class* object% (infrabel-interface<%>)
     (init-field (log-level #f))
     (super-new)
 
     (define railway #f)
 
-    (define ext:start-simulator      void)
-    (define ext:stop-simulator       void)
+    (define ext:start                void)
+    (define ext:stop                 void)
     (define ext:get-loco-d-block     void)
     (define ext:get-loco-speed       void)
     (define ext:set-loco-speed!      void)
@@ -35,8 +36,8 @@
         ((loop)                 (sim:setup-loop))
         ((loop-and-switches)    (sim:setup-loop-and-switches))
         (else (error (format "Setup ~a not found" setup-id))))
-      (set! ext:start-simulator      sim:start)
-      (set! ext:stop-simulator       sim:stop)
+      (set! ext:start                sim:start)
+      (set! ext:stop                 sim:stop)
       (set! ext:get-loco-d-block     sim:get-loco-detection-block)
       (set! ext:get-loco-speed       sim:get-loco-speed)
       (set! ext:set-loco-speed!      sim:set-loco-speed!)
@@ -48,8 +49,8 @@
       (set! ext:get-switch-ids       sim:get-switch-ids))
 
     (define (z21-mode)
-      (set! ext:start-simulator      z21:start)
-      (set! ext:stop-simulator       z21:stop)
+      (set! ext:start                z21:start)
+      (set! ext:stop                 z21:stop)
       (set! ext:get-loco-d-block     z21:get-loco-detection-block)
       (set! ext:get-loco-speed       z21:get-loco-speed)
       (set! ext:set-loco-speed!      z21:set-loco-speed!)
@@ -62,14 +63,19 @@
       (set! ext:get-switch-ids
             (lambda () (send railway get-switch-ids))))
 
+    (define initialized #f)
+
     (define/public (initialize setup-id (mode 'sim))
       (case mode
         ((z21) (z21-mode))
         ((sim) (simulation-mode setup-id))
         (else (error (format "initialize: ~a is not a valid mode" mode))))
       (set! railway (make-object railway% setup-id))
-      (ext:start-simulator)
-      'initialized)
+      (ext:start)
+      (set! initialized #t))
+
+    (define/public (initialized?)
+      initialized)
 
     (define running #f)
 
@@ -87,7 +93,7 @@
 
     (define/public (stop)
       (set! running #f)
-      (ext:stop-simulator))
+      (ext:stop))
 
     (define/public (add-loco id prev curr)
       (define prev-track (get-track prev))

@@ -5,9 +5,8 @@
 (require racket/class
          "logger.rkt"
          "nmbs/nmbs.rkt"
-         "infrabel/infrabel.rkt"
-         (prefix-in tcp: "infrabel/client.rkt")
-         (prefix-in raw: "infrabel/infrabel.rkt"))
+         "infrabel/client.rkt"
+         "infrabel/infrabel.rkt")
 
 
 ;; The starts up the program.
@@ -56,8 +55,8 @@
 
   (define infrabel
     (if remote
-      (new tcp:infrabel%)
-      (new raw:infrabel%)))
+      (new infrabel-client%)
+      (new infrabel%)))
 
   (define nmbs
     (new nmbs% (infrabel infrabel) (log-level log-level)))

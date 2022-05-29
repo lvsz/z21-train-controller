@@ -14,20 +14,6 @@
 (define in #f)
 (define out #f)
 
-;; Accept TCP listeners and wait until an initialize command
-(define (setup port)
-  (set! listener (tcp-listen port 4 #t))
-  (let-values (((_in _out) (tcp-accept listener)))
-    (set! in _in)
-    (set! out _out))
-  (let loop ()
-    (let ((msg (get-msg)))
-      (case (car msg)
-        ((initialize)
-         (log/i (format "Connection established on port ~a" port))
-         (cdr msg))
-        (else (loop))))))
-
 
 ;; Try to fail as gracefully as possible
 (define (stop exn)
@@ -90,18 +76,34 @@
          (reply (send infrabel get-d-block-ids)))
         ((get-d-block-statuses)
          (reply (send infrabel get-d-block-statuses)))
+        ((initialized?)
+         (reply (send infrabel initialized?)))
         ((stop)
          (stop 'request))
         (else (log/i (format "Unrecongized message: ~a" msg))))
       (loop (get-msg)))))
 
 
-(define log/i identity) ; info-level logging function
-(define log/d identity) ; debug-level logging function
+(define log/i void) ; info-level logging function
+(define log/d void) ; debug-level logging function
 
 
 ;; Initialize everything and start the server
 (define (start-server port (log-level 'debug))
+  ;; Accept TCP listeners and wait until an initialize command
+  (define (init-args)
+    (let-values (((_in _out) (tcp-accept listener)))
+      (set! in _in)
+      (set! out _out))
+    (let loop ((msg (get-msg)))
+      (case (car msg)
+        ((initialize)
+         (log/i (format "Connection established on port ~a" port))
+         (cdr msg))
+        (else
+         (log/d "Unexpected message:" msg)
+         (loop (get-msg))))))
+  (set! listener (tcp-listen port 4 #t))
   (when log-level
     (set!-values (log/i log/d) (make-loggers 'infrabel/server))
     (start-logger log-level))
@@ -109,7 +111,7 @@
   (log/i (format "Log level ~a" log-level))
   (set! infrabel (new infrabel% (log-level log-level)))
   (with-handlers ((exn:break? stop))
-                 (send/apply infrabel initialize (setup port))
+                 (send/apply infrabel initialize (init-args port))
                  (begin0 (send infrabel start)
                          (log/i "Infrabel started")
                          (thread run))))

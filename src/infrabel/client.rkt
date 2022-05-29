@@ -1,9 +1,10 @@
 #lang racket/base
 
-(provide infrabel%)
+(provide infrabel-client%)
 
 (require racket/tcp
          racket/class
+         "interface.rkt"
          "../logger.rkt")
 
 
@@ -86,14 +87,14 @@
 
 
 ;; Logging function that can be enabled
-(define log/i identity)
-(define log/d identity)
+(define log/i void)
+(define log/d void)
 
 
 ;; For interchangeability purposes, this has the exact same interface
 ;; as the infrabel% class in infrabel.rkt
-(define infrabel%
-  (class object%
+(define infrabel-client%
+  (class* object% (infrabel-interface<%>)
     (init-field (log-level 'debug))
     (super-new)
 
@@ -101,9 +102,12 @@
       (set!-values (log/i log/d) (make-loggers 'infrabel/client)))
 
     (define/public (initialize setup-id (mode 'sim))
-      (log/i "initializing")
+      (log/i "Initializing")
       (quick-connect)
       (put 'initialize setup-id mode))
+
+    (define/public (initialized?)
+      (get 'initialized?))
 
     (define/public (start)
       (void))
