@@ -8,45 +8,12 @@
          racket/file
          racket/match)
 
+(define logger-thread #f)
+
 (define log-directory "logs")
-(unless (directory-exists? log-directory)
-  (make-directory "logs"))
-
-;; Turns a number into a string,
-;; prefixing it with a zero if it's a single digit.
-(define (pad0 n)
-  (if (<= 0 n 9)
-    (string-append "0" (number->string n))
-    (number->string n)))
-
-(define (time-string)
-  (let ((current-time (current-date)))
-    (format "~a:~a:~a"
-            (pad0 (date-hour current-time))
-            (pad0 (date-minute current-time))
-            (pad0 (date-second current-time)))))
-
-(define (date-string)
-  (match (current-date)
-    ((date* _ _ _ d m y _ _ _ _ _ _)
-     (format "~a-~a-~a" y (pad0 m) (pad0 d)))))
-
-(define (msg->string
-          msg
-          #:prefix   (prefix   "")
-          #:interfix (interfix " ")
-          #:suffix   (suffix   ""))
-  (if (null? msg)
-    suffix
-    (string-append
-      prefix
-      (format "~a" (car msg))
-      (msg->string (cdr msg)
-                   #:prefix   interfix
-                   #:interfix interfix
-                   #:suffix   suffix))))
 
 
+;; Make use of Racket logging functionality
 (define logger
   (make-logger))
 
@@ -68,15 +35,17 @@
     (make-directory* dir)
     (format "~a/~a.log" dir date)))
 
+
+;; Hash containing open output files for logging
 (define logs (make-hash))
 
 ;; Return relevant file, create it if necessary
 (define (get-file topic date)
-  (hash-ref! logs topic
+  (hash-ref! logs
+             topic
              (lambda ()
                (open-output-file (path topic date) #:exists 'append))))
 
-(define logger-thread #f)
 
 (define (start-logger (level 'info))
   (define receiver (make-log-receiver logger level))
@@ -92,9 +61,12 @@
          (flush-output out1)
          (flush-output out2))))
     (logging))
+  (unless (directory-exists? log-directory)
+    (make-directory log-directory))
   (if logger-thread
     (error "start-logger: logger already running")
     (set! logger-thread (thread logging))))
+
 
 (define (stop-logger)
   (if logger-thread
@@ -103,4 +75,45 @@
            (for ((file (in-hash-values logs)))
              (close-input-port file)))
     (error "stop-logger: logger not running")))
+
+
+;; Turns a number into a string,
+;; prefixing it with a zero if it's a single digit.
+(define (pad0 n)
+  (if (<= 0 n 9)
+    (string-append "0" (number->string n))
+    (number->string n)))
+
+
+;; get current time and format it for logging
+(define (time-string)
+  (let ((current-time (current-date)))
+    (format "~a:~a:~a"
+            (pad0 (date-hour current-time))
+            (pad0 (date-minute current-time))
+            (pad0 (date-second current-time)))))
+
+
+;; Get current date and format it for logging
+(define (date-string)
+  (match (current-date)
+    ((date* _ _ _ d m y _ _ _ _ _ _)
+     (format "~a-~a-~a" y (pad0 m) (pad0 d)))))
+
+
+;; Turns a list into a string, seperated with spaces by default
+(define (msg->string
+          msg
+          #:prefix   (prefix   "")
+          #:interfix (interfix " ")
+          #:suffix   (suffix   ""))
+  (if (null? msg)
+    suffix
+    (string-append
+      prefix
+      (format "~a" (car msg))
+      (msg->string (cdr msg)
+                   #:prefix   interfix
+                   #:interfix interfix
+                   #:suffix   suffix))))
 
