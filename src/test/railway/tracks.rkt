@@ -125,60 +125,19 @@
       (check-exn exn:fail? (lambda () (send s-51-56 set-position 3)))
       (check-exn exn:fail? (lambda () (send s-51-56 set-position t-58))))
     (test-case
-      "A callback function should be called after a switch changes"
-      (check-true (let* ((switch s-51-56)
-                         (id (send switch get-id))
-                         (old-pos (send switch get-position))
-                         (success #f)
-                         (f (lambda (fid new-pos)
-                              (when (and (eq? id fid)
-                                         (not (eq? old-pos new-pos)))
-                                (set! success #t)))))
-                    (send switch set-callback f)
-                    (send switch set-position (if (= old-pos 1) 2 1))
-                    success)))
-    (test-case
-      "When changing an child switch, its parent should change first"
-      (check-true
-        (let* ((child s-51-56)
-               (parent s-5156-58)
-               (old-pos (send child get-position))
-               (success #f)
-               (f (lambda (fid new-pos)
-                    (case fid
-                      ((s-5156-58)
-                       ; proceed when `success` hasn't been touched yet
-                       (when (and (eq? success #f)
-                                  (= (send child get-position)
-                                     old-pos))
-                         (set! success 'tmp)))
-                      ((s-51-56)
-                       ; proceed when `success` has been touched
-                       (when (eq? success 'tmp)
-                         (set! success (= (send parent get-position)
-                                          1))))))))
-               (send parent set-position 2)
-               (send child set-callback f)
-               (send parent set-callback f)
-               (send child set-position (if (= old-pos 1) 2 1))
-               (and (= 1 (send parent get-position))
-                    success))))
-    (test-case
       "A parent switch's set-position also accepts its children's options"
-      (check-true
-        (let ((child s-51-56)
-              (parent s-5156-58)
-              (old-pos t-51)
-              (new-pos t-56)
-              (par-pos t-58))
-          (send child set-position old-pos)
-          (and (eq? (send parent get-position) 1)
-               (eq? (send child get-position) 1)
-               (begin (send parent set-position par-pos)
-                      (send child set-position new-pos)
-                      #t)
-               (eq? (send child get-position) 2)
-               (eq? (send parent get-position) 1)))))
+      (let ((child s-51-56)
+            (parent s-5156-58)
+            (old-pos t-51)
+            (new-pos t-56)
+            (par-pos t-58))
+        (send child set-position old-pos)
+        (send parent set-position par-pos)
+        (check-eq? (send child get-position) 1)
+        (check-eq? (send parent get-position) 2)
+        (send parent set-position new-pos)
+        (check-eq? (send child get-position) 2)
+        (check-eq? (send parent get-position) 2)))
     (test-case
       "Coming from a track, a switch can give its sub track options"
       (check-equal? (list t-39)

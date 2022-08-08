@@ -188,19 +188,17 @@
     (define/public (set-position pos)
       (let/cc
         break
-        (let ((t (cond ((or (eq? pos 1) (eq? pos track-1))
-                        track-1)
-                       ((or (eq? pos 2) (eq? pos track-2))
-                        track-2)
-                       ((memq pos options)
-                        (send (get-field superior pos) set-position pos)
-                        (break))
-                       (else
-                        (error "set-position: Invalid switch position" pos)))))
-          (unless (eq? superior this)
-            (send superior set-position this))
-          (set! current-track t)
-          (callback id (get-position)))))
+        (let ((t (cond
+                   ((or (eq? pos 1) (eq? pos track-1))
+                    track-1)
+                   ((or (eq? pos 2) (eq? pos track-2))
+                    track-2)
+                   ((memq pos options)
+                    (send (get-field superior pos) set-position pos)
+                    (break))
+                   (else
+                    (error "set-position: Invalid switch position" pos)))))
+          (set! current-track t))))
 
     ;; Safe to save nodes, as they can no longer change
     (define nodes (get-nodes this))
@@ -223,11 +221,6 @@
 
     (define/override (get-length)
       (send current-track get-length))
-
-    ; A function that get called every time the switch changes position
-    (define callback void)
-    (define/public (set-callback proc)
-      (set! callback proc))
 
     ;; Custom printing functions to make debugging easier
     (define/override (custom-write port)

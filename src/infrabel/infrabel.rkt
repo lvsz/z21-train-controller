@@ -2,7 +2,8 @@
 
 (provide infrabel%)
 
-(require racket/class
+(require racket/async-channel
+         racket/class
          racket/list
          "interface.rkt"
          "../railway/railway.rkt"
@@ -83,11 +84,12 @@
       (define (infrabel-loop)
         (for ((loco (in-list (send railway get-locos))))
           (get-loco-d-block (send loco get-id)))
-        (sleep 1)
+        (sleep 0.5)
         (when running (infrabel-loop)))
       (for ((switch (in-list (send railway get-switches))))
-        ; TODO: set hardware positions instead of getting them
-        (send switch set-position (ext:get-switch-position (send switch get-id))))
+        (send switch
+              set-position
+              (ext:get-switch-position (send switch get-id))))
       (set! running #t)
       (void (thread infrabel-loop)))
 
@@ -148,12 +150,29 @@
       (ext:get-switch-position id))
 
     (define/public (set-switch-position id position)
-      (send (get-track id) set-position position)
-      (ext:set-switch-position! id position))
+      (let* ((switch (send railway get-switch id))
+             (sup-switch (get-field superior switch))
+             (track (if (= position 1)
+                      (get-field track-1 switch)
+                      (get-field track-2 switch))))
+        ; If switch is part of another switch, switch other switch first
+        (unless (eq? switch sup-switch)
+          (let ((s-id (send sup-switch get-id))
+                (s-pos (if (eq? (get-field track-1 sup-switch) switch)
+                         1
+                         2)))
+            (set-switch-position s-id s-pos)
+            (async-channel-put update-channel (list 'switch s-id s-pos))))
+        (send switch set-position position)
+        (ext:set-switch-position! id position)))
 
     (define/public (get-d-block-statuses)
       (for/list ((d-block (in-list (send railway get-d-blocks))))
         (cons (send d-block get-id) (send d-block get-status))))
+
+    (define update-channel (make-async-channel))
+    (define/public (get-update)
+      update-channel)
 
     (define (get-track id)
       (send railway get-track id))

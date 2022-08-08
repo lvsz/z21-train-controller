@@ -39,7 +39,9 @@
         (if (d-block? track)
           (choo-choo pos)
           (begin (when (switch? top)
-                   (send top set-position track))
+                   (let ((top-id (send top get-id))
+                         (track-id (send track get-id)))
+                     (send nmbs set-switch-track top-id track-id)))
                  (set-switches (add1 pos))))))
 
     ;; Check on which d-blocks if any the loco has to change direction

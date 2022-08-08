@@ -2,9 +2,11 @@
 
 (provide start-server)
 
-(require racket/tcp
-         racket/date
+(require racket/async-channel
          racket/class
+         racket/date
+         racket/match
+         racket/tcp
          "infrabel.rkt"
          "interface.rkt"
          "../logger.rkt")
@@ -55,7 +57,8 @@
 (define (run (infrabel (current-infrabel)))
   (when (not (is-a? infrabel infrabel-interface<%>))
     (error "run: no valid infrabel object provided"))
-  (let loop ((msg (get)))
+  ;(let loop ((msg (get)))
+  (define (tcp-handler msg)
     (when (eof-object? msg)
       (stop msg))
     (let ((id (car msg))
@@ -88,8 +91,14 @@
          (put id (send infrabel initialized?)))
         ((stop)
          (stop 'request))
-        (else (log/i (format "Unrecongized message: ~a" msg))))
-      (loop (get)))))
+        (else (log/i (format "Unrecongized message: ~a" msg))))))
+  (define (update-handler datum)
+    (put (car datum) (cdr datum)))
+  (let loop ()
+    (match (sync (choice-evt (send infrabel get-update) (current-tcp-input)))
+      ((? input-port? tcp-in) (tcp-handler (get tcp-in)))
+      (datum (update-handler datum)))
+    (loop)))
 
 
 ;; Initialize everything and start the server
@@ -107,6 +116,7 @@
       (else
        (log/d "Unexpected message:" msg)
        (init-args (get tcp-in)))))
+  (define update-channel (make-channel))
   (when log-level
     (set!-values (log/i log/d) (make-loggers 'infrabel/server))
     (start-logger log-level))

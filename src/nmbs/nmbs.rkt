@@ -1,13 +1,14 @@
 #lang racket/base
 
-(require racket/class
+(provide nmbs%)
+
+(require racket/async-channel
+         racket/class
          racket/list
          "gui.rkt"
          "robo-loco.rkt"
          "../railway/railway.rkt"
          "../logger.rkt")
-
-(provide nmbs%)
 
 (define nmbs%
   (class object%
@@ -50,7 +51,27 @@
     (define/public (get-switch-position id)
       (send (send railway get-switch id) get-position))
     (define/public (set-switch-position id pos)
-      (send (send railway get-switch id) set-position pos))
+      (send infrabel set-switch-position id pos)
+      (send (send railway get-switch id) set-position pos)
+      (for ((lstnr (in-list switch-listeners)))
+        (lstnr id pos)))
+    (define/public (set-switch-track id track-id)
+      (let ((switch (send railway get-switch id))
+            (track (send railway get-track track-id)))
+        (cond ((eq? track (get-field track-1 switch))
+               (set-switch-position id 1))
+              ((eq? track (get-field track-2 switch))
+               (set-switch-position id 2))
+              ((memq track (get-field options switch))
+               (let rec ((s (get-field superior track))
+                         (t track))
+                 (let ((ss (get-field superior s)))
+                   (unless (eq? s ss)
+                     (rec ss s))
+                   (set-switch-track (send s get-id) (send t get-id)))))
+              (else
+               (error
+                 (format "set-switch-track: ~a not part of ~a" track-id id))))))
 
     (define (get-loco id)
       (send railway get-loco id))
@@ -129,14 +150,25 @@
 
     ; Update detection block statuses & loco speeds on regular intervals.
     (define (get-updates)
-      (when (sync/timeout 1 (thread-receive-evt))
+      ; Other methods in this class like remove-loco may send lambdas to run
+      (when (sync/timeout 0.1 (thread-receive-evt))
         ((thread-receive)))
+      (let ((update (async-channel-try-get (send infrabel get-update))))
+        (when update
+          (case (car update)
+            ((switch)
+             (send/apply this set-switch-position (cdr update)))
+            ((loco-speed)
+             (let ((loco-id (cadr update))
+                   (new-speed (caddr update)))
+             (for ((lstnr (in-list (hash-ref loco-speed-listeners loco-id))))
+               (lstnr loco-id new-speed)))))))
       (for ((db (in-list (send infrabel get-d-block-statuses))))
         (for ((notify (in-list d-block-listeners)))
           (notify (car db) (cdr db))))
-      (for ((loco (in-list (get-loco-ids))))
-        (for ((notify (in-list (hash-ref loco-speed-listeners loco '()))))
-          (notify (get-loco-speed loco))))
+      ;(for ((loco (in-list (get-loco-ids))))
+        ;(for ((notify (in-list (hash-ref loco-speed-listeners loco '()))))
+          ;(notify (get-loco-speed loco))))
       (get-updates))
 
     (define/public (stop)
@@ -150,23 +182,14 @@
     (define/public (start #:setup-id (setup-id #f) #:mode (mode 'sim))
       (define (_start)
         (send infrabel initialize setup-id mode)
+        (send infrabel start)
         (set! railway (make-object railway% setup-id))
         (set! starting-spots (find-starting-spots infrabel railway))
         (new window%
              (nmbs this)
              (atexit (lambda () (send this stop))))
-        (send infrabel start)
-        ;; add callback to switches to notify listeners & infrabel when changed
-        (for ((switch (in-list (send railway get-switches))))
-          (send switch
-                set-callback
-                (lambda (id pos)
-                  (for ((listener (in-list switch-listeners)))
-                    (listener id pos))
-                  (send infrabel set-switch-position id pos))))
         (sleep 0.5)
         (set! update-thread (thread get-updates)))
-
       ; If there's no setup yet, open the setup window.
       (void (if setup-id
               (_start)
@@ -184,25 +207,24 @@
 (struct starting-spot (previous current))
 
 (define (find-starting-spots infrabel railway)
-  (let* ((db-ids (send infrabel get-d-block-ids))
-         (switch-ids (send infrabel get-switch-ids))
-         (infrabel-ids (append db-ids switch-ids))
-         (spots (for/list ((track-id
-                             (in-list (map (lambda (db) (send db get-id))
-                                           (send railway get-d-blocks)))))
-                  ; first make sure there's a match
-                  (and (memq track-id infrabel-ids)
-                       (let* ((track (send railway get-track track-id))
-                              ; get ids from tracks connected to current track
-                              (ids (map (lambda (s) (send s get-id))
-                                        (send track get-connected-tracks)))
-                              ; check if any connected track can be found in infrabel
-                              (prev (findf (lambda (x)
-                                             (memq x infrabel-ids))
-                                           ids)))
-                         ; create & return starting-spot object if result was a match
-                         (and prev
-                              (cons track-id (starting-spot prev track-id))))))))
+  (let*
+    ((db-ids       (send infrabel get-d-block-ids))
+     (switch-ids   (send infrabel get-switch-ids))
+     (infrabel-ids (append db-ids switch-ids))
+     (spots
+       (for/list ((track-id (in-list (map (lambda (db) (send db get-id))
+                                          (send railway get-d-blocks)))))
+         ; First make sure there's a match
+         (and (memq track-id infrabel-ids)
+              (let* ((track (send railway get-track track-id))
+                     ; Get ids from tracks connected to current track
+                     (ids (map (lambda (s) (send s get-id))
+                               (send track get-connected-tracks)))
+                     ; Check if any connected track can be found in infrabel
+                     (prev (findf (lambda (x) (memq x infrabel-ids)) ids)))
+                ; Return id & a struct if result was a match
+                (and prev
+                     (cons track-id (starting-spot prev track-id))))))))
     (for/hash ((spot (in-list spots))
                #:when spot)
       (values (car spot) (cdr spot)))))

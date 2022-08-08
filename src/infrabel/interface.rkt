@@ -20,5 +20,6 @@
     (get-switch-ids   (->m (listof symbol?)))
     (get-switch-position  (->m symbol? (or/c 1 2)))
     (set-switch-position  (->m symbol? (or/c 1 2) void?))
-    (get-d-block-statuses (->m (listof pair?)))))
+    (get-d-block-statuses (->m (listof pair?)))
+    (get-update (->m evt?))))
 

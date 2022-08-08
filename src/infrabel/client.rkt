@@ -2,9 +2,10 @@
 
 (provide infrabel-client%)
 
-(require racket/tcp
+(require racket/async-channel
          racket/class
          racket/match
+         racket/tcp
          "interface.rkt"
          "../logger.rkt")
 
@@ -61,8 +62,9 @@
     (define-values (tcp-in tcp-out)
       (quick-connect))
 
-    (define loco-speed-listeners (make-hash))
-    (define switch-listeners (make-hash))
+    (define update-channel (make-async-channel))
+    (define/public (get-update)
+      update-channel)
 
     ;; Several threads may be sending & requesting data over tcp,
     ;; the main purpose of this thread is to keep them organised
@@ -71,12 +73,8 @@
       (define (update args)
         (log/d "Received update:" args)
         (case (car args)
-          ((loco-speed)
-           (for ((proc (in-hash-keys loco-speed-listeners)))
-             (apply proc (cdr args))))
-          ((switch)
-           (for ((proc (in-hash-keys switch-listeners)))
-             (apply proc (cdr args))))
+          ((loco-speed switch)
+           (async-channel-put update-channel args))
           (else
            (match (hash-ref pending (car args) #f)
              (#f (log/i "Cannot not recognize received update:" args))
