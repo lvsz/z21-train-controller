@@ -14,10 +14,6 @@
 
 (struct item (value (priority #:mutable)) #:transparent)
 
-;(define (pq-notify notify)
-;  (lambda (idx item)
-;    (notify idx (item-value item) (item-priority item))))
-
 (define (pq-notify pq)
   (lambda (idx val)
     (hash-set! (pqueue-indices pq) (item-value val) idx)))
