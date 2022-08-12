@@ -8,57 +8,67 @@
          "infrabel/client.rkt"
          "infrabel/infrabel.rkt")
 
+;; List of setup names
+(define setups (map path->string (directory-list "resources/setups/")))
 
-;; The starts up the program.
-;;   if #:remote? = #f : everything runs in a single instance
-;;   if #:remote? = #t : it needs to connect with a server
+;; Print setup names
+(define (display-setups out)
+  (fprintf out "setups: ~a~%" (car setups))
+  (for ((s (in-list (cdr setups))))
+    (fprintf out "        ~a~%" s)))
+
+;; Text to display for command line usage
+(define help-string
+  "usage: run-nmbs [-p | --port NUM]
+                [-s | --setup NAME|list]
+                [-l | --log info|debug]\n")
+
+;; Print help string and exit
+(define (help out)
+  (display help-string out)
+  (exit))
+
+
+;; This starts up the program.
+;;   if #:local? = #t : everything runs in a single instance
+;;   if #:local? = #f : it needs to connect with a server
 ;;     the server can be either localhost or raspberypi
 ;;   if #:setup = #f : gives the user a selection screen to pick a setup
 ;;   otherwise it will skip that step (assuming the given setup exists)
-(define (run-nmbs #:remote? (remote #f)
-                  #:setup (setup #f)
-                  #:log (log-level 'info))
-  (let ((setups (map path->string (directory-list "resources/setups/")))
-        (args (current-command-line-arguments)))
+(define (run-nmbs #:local? (local #f)
+                  #:setup  (setup #f)
+                  #:log    (log-level 'info))
+  (let ((args (current-command-line-arguments)))
     (let loop ((i 0))
-      (unless (>= i (vector-length args))
-        (case (vector-ref args i)
-          (("--hardware")
-           (set! setup 'hardware)
-           (loop (add1 i)))
-          (("--setup")
-           (if (< (add1 i) (vector-length args))
-             (let ((id (vector-ref args (add1 i))))
-               (if (member id setups)
-                 (set! setup (string->symbol id))
-                 (eprintf "Unrecognized setup: ~a~%" id))
-               (loop (+ i 2)))
-             (eprintf "No setup given~%")))
-          (("--remote" "-r")
-           (set! remote #t)
-           (loop (add1 i)))
-          (("--list" "-l")
-           (for-each displayln setups)
-           (exit))
-          (("--log")
-           (let ((level (vector-ref args (add1 i))))
+      (when (< i (vector-length args))
+        (case (string->symbol (vector-ref args i))
+          ((--setup -s)
+           (set! i (add1 i))
+           (let ((arg (vector-ref args i)))
+             (cond ((string=? arg "list")
+                    (display-setups (current-output-port))
+                    (exit))
+                   ((member arg setups)
+                    (set! setup (string->symbol arg)))
+                   (else (eprintf "Invalid setup: ~a~%" arg)
+                         (display-setups (current-error-port))))))
+          ((--log -l)
+           (set! i (add1 i))
+           (let ((level (string->symbol (vector-ref args i))))
              (case level
-               (("info")
-                (set! log-level 'info))
-               (("debug")
-                (set! log-level 'debug))
-               (else
-                (eprintf "Log level needs to be 'info' or 'debug', got: ~a~%" level)))))
-          (("--debug")
-           (set! log-level 'debug))
-          (else
-           (eprintf "Unrecognized argument: ~a~%" (vector-ref args i))
-           (loop (add1 i)))))))
+               ((debug info)
+                (set! log-level level))
+               (else (eprintf "Log level must be 'info' or 'debug'~%")))))
+          ((--help -h help)
+           (help (current-output-port)))
+          (else (eprintf "Invalid argument: ~a~%" (vector-ref args i))
+                (help (current-error-port))))
+        (loop (add1 i)))))
 
   (define infrabel
-    (if remote
-      (new infrabel-client%)
-      (new infrabel%)))
+    (if local
+      (new infrabel%)
+      (new infrabel-client%)))
 
   (define nmbs
     (new nmbs% (infrabel infrabel) (log-level log-level)))
