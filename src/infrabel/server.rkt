@@ -6,68 +6,61 @@
          racket/class
          racket/date
          racket/match
+         racket/set
          racket/tcp
          "infrabel.rkt"
          "interface.rkt"
+         "message.rkt"
          "../logger.rkt")
 
-(define current-infrabel (make-parameter #f))
-(define current-listener (make-parameter #f))
-(define current-tcp-input (make-parameter (current-input-port)))
-(define current-tcp-output (make-parameter (current-output-port)))
 
 (define log/i void)
 (define log/d void)
 
-;; Try to fail as gracefully as possible
-(define (stop exn)
-  (if (current-infrabel)
-    (send (current-infrabel) stop)
-    (log/i "No infrabel parameter set"))
-  (if (current-listener)
-    (begin (tcp-close (current-listener))
-           (close-input-port (current-tcp-input))
-           (close-output-port (current-tcp-output)))
-    (log/i "No listener parameter set"))
-  (cond ((eq? exn 'request)
-         (log/i "Infrabel server stopped by request"))
-        ((exn:break? exn)
-         (log/i "Infrabel server stopped by user break"))
-        ((eof-object? exn)
-         (log/i "Infrabel server stopped by client disconnection"))
-        (else
-         (log/i (format "Infrabel server stopped by unkown cause: ~a" exn))))
-  (exit))
-
 
 ;; Receive and log message
-(define (get (input (current-tcp-input)))
+(define (input-from input)
   (let ((msg (read input)))
     (log/d (format "received \"~a\"" msg))
     msg))
 
 ;; Reply and log message
-(define (put id response (output (current-tcp-output)))
-  (log/d (format "sent \"~a\"" response))
-  (write (cons id response) output)
-  (flush-output output))
+(define (output-to id response output)
+  (let ((msg (message id 'response response)))
+    (log/d (format "sent \"~a\"" msg))
+    (write msg output)))
 
 
-;; Parse any received messages and respond appropriately
-(define (run (infrabel (current-infrabel)))
-  (when (not (is-a? infrabel infrabel-interface<%>))
-    (error "run: no valid infrabel object provided"))
-  ;(let loop ((msg (get)))
+(define (new-client-thread infrabel tcp-in tcp-out)
+  (define (put id response)
+    (output-to id response tcp-out))
+
+  (define (get)
+    (input-from tcp-in))
+
+  ; Keep track of locos in case of disconnect
+  (define locos (mutable-set))
+
+  (define (stop msg)
+    (for ((loco (in-set locos)))
+      (send infrabel remove-loco loco))
+    (tcp-abandon-port tcp-in)
+    (tcp-abandon-port tcp-out)
+    (log/i "Connection with client ended:" msg)
+    (kill-thread (current-thread)))
+
   (define (tcp-handler msg)
     (when (eof-object? msg)
-      (stop msg))
-    (let ((id (car msg))
-          (method (cadr msg))
-          (args (cddr msg)))
+      (stop 'disconnect))
+    (let ((id     (message-id msg))
+          (method (message-header msg))
+          (args   (message-body msg)))
       (case method
         ((add-loco)
+         (set-add! locos (car args))
          (send/apply infrabel add-loco args))
         ((remove-loco)
+         (set-remove! locos (car args))
          (send/apply infrabel remove-loco args))
         ((get-loco-speed)
          (put id (send/apply infrabel get-loco-speed args)))
@@ -87,56 +80,112 @@
          (put id (send infrabel get-d-block-ids)))
         ((get-d-block-statuses)
          (put id (send infrabel get-d-block-statuses)))
-        ((initialized?)
-         (put id (send infrabel initialized?)))
+        ((get-setup)
+         (put id (send infrabel get-setup)))
+        ((initialize)
+         (send/apply infrabel initialize args))
+        ((start)
+         (send infrabel start))
         ((stop)
          (stop 'request))
-        (else (log/i (format "Unrecongized message: ~a" msg))))))
+        (else (log/i "Unrecongized message: ~a" msg)))))
+
   (define (update-handler datum)
-    (put (car datum) (cdr datum)))
-  (let loop ()
-    (match (sync (choice-evt (send infrabel get-update) (current-tcp-input)))
-      ((? input-port? tcp-in) (tcp-handler (get tcp-in)))
-      (datum (update-handler datum)))
-    (loop)))
+    (when (or (not (eq? (car datum) 'loco-speed))
+              (set-member? (cadr datum) locos))
+      (put (car datum) (cdr datum))))
+
+  (define (client-loop)
+    ; If a TCP port synchronizes, it returns the port
+    ; So it's not a port, it's an update
+    (if (input-port? (sync (choice-evt tcp-in (thread-receive-evt))))
+      (tcp-handler (get))
+      (update-handler (thread-receive)))
+    (client-loop))
+  (thread client-loop))
 
 
 ;; Initialize everything and start the server
 (define (start-server port
                       #:log   (log-level 'info)
-                      #:setup (setup #f)
-                      #:mode  (mode #f))
-  (displayln (format "Server accepting TCP connections on port ~a" port))
-  (define listener (tcp-listen port 4 #t))
-  (define-values (tcp-in tcp-out)
-    (tcp-accept listener))
-  ;; Accept TCP listeners and wait until an initialize command
-  (define (init-args (msg (get tcp-in)))
-    (case (cadr msg)
-      ((initialize)
-       (log/i "Connection established on port" port)
-       (if setup
-         (if mode
-           (list setup mode)
-           (list setup))
-         (cddr msg)))
-      (else
-       (log/i "Unexpected message:" msg)
-       (init-args (get tcp-in)))))
-  (define update-channel (make-channel))
-  (when log-level
-    (set!-values (log/i log/d) (make-loggers 'infrabel/server))
-    (start-logger log-level))
-  (log/i "Infrabel server activated")
-  (log/i "Log level" log-level)
-  (let ((infrabel (new infrabel% (log-level log-level))))
-    (parameterize ((current-listener listener)
-                   (current-infrabel infrabel)
-                   (current-tcp-input tcp-in)
-                   (current-tcp-output tcp-out))
-      (with-handlers ((exn? stop))
-                     (send/apply infrabel initialize (init-args))
-                     (begin0 (send infrabel start)
-                             (log/i "Infrabel started")
-                             (thread run))))))
+                      #:setup (setup #f))
+  (define listener (tcp-listen port))
+  (define client-threads '())
+  (define infrabel (new infrabel% (log-level log-level)))
+
+  (define master-thread (current-thread))
+  (define run-thread (current-thread))
+
+  (define (run)
+    ; Accepting clients and updating them both utilise the client-threads list
+    ; To prevent race conditions, these get handled in the same thread
+    (match (sync (choice-evt (tcp-accept-evt listener)
+                             (send infrabel get-update)))
+      ; If tcp-accept-evt synchronized, it returns two TCP ports
+      ((list (? tcp-port? tcp-in) tcp-out)
+       (let ((msg (input-from tcp-in)))
+         (file-stream-buffer-mode tcp-out 'none)
+         (if (and (message? msg)
+                  (eq? (message-header msg) 'connect))
+           (begin (set! client-threads (cons (new-client-thread
+                                               infrabel
+                                               tcp-in
+                                               tcp-out)
+                                             client-threads))
+                  (log/i "Connection established on port" port))
+           (log/d "Expected \"connect\" message but received:" msg))))
+      ; Else it's an infrabel update for the threads to handle
+      ; Also remove any threads that are no longer running
+      (update
+       (set! client-threads (map (lambda (c) (thread-send c update))
+                                 (filter thread-running? client-threads)))))
+    (run))
+
+  (define (stop exn)
+    (log/i "Server shutting down.")
+    ; Kill run loop and client threads
+    (for-each kill-thread (cons run-thread client-threads))
+    (send infrabel stop)
+    (cond ((eq? exn 'request)
+           (log/i "Infrabel server stopped by request"))
+          ((exn:break? exn)
+           (log/i "Infrabel server stopped by user break"))
+          (else
+           (log/i "Infrabel server stopped by unkown cause:" exn)))
+    (tcp-close listener)
+    (kill-thread master-thread))
+
+  (define (repl)
+    (displayln "Enter 'exit' to stop server.")
+    (display "> ")
+    (if (string=? (read-line) "exit")
+      (stop 'request)
+      (begin (displayln "Command not recognized.")
+             (repl))))
+
+  (with-handlers
+    ((exn? stop))
+
+    (when log-level
+      (set!-values (log/i log/d) (make-loggers 'infrabel/server))
+      (start-logger log-level))
+
+    (when setup
+      (send infrabel initialize setup))
+
+    (displayln (format "Server accepting TCP connections on port ~a." port))
+    (thread repl)
+    (let-values (((in out) (tcp-accept listener)))
+      (file-stream-buffer-mode out 'none)
+      (set! client-threads (list (new-client-thread infrabel in out))))
+
+    (log/i "Infrabel server activated")
+    (log/i "Log level" log-level)
+
+    ; Blocks until infrabel is initialized
+    (sync (send infrabel get-update))
+
+    (begin0 (send infrabel start)
+            (log/i "Infrabel started")
+            (set! run-thread (thread run)))))
 

@@ -29,7 +29,7 @@
     (define ext:get-d-block-ids      void)
     (define ext:get-switch-ids       void)
 
-    (define (simulation-mode setup-id)
+    (define (simulation-mode! setup-id)
       (case setup-id
         ((hardware)             (sim:setup-hardware))
         ((straight)             (sim:setup-straight))
@@ -49,7 +49,7 @@
       (set! ext:get-d-block-ids      sim:get-detection-block-ids)
       (set! ext:get-switch-ids       sim:get-switch-ids))
 
-    (define (z21-mode)
+    (define (z21-mode!)
       (set! ext:start                z21:start)
       (set! ext:stop                 z21:stop)
       (set! ext:get-loco-d-block     z21:get-loco-detection-block)
@@ -64,19 +64,21 @@
       (set! ext:get-switch-ids
             (lambda () (send railway get-switch-ids))))
 
-    (define initialized #f)
+    (define setup #f)
 
-    (define/public (initialize setup-id (mode 'sim))
-      (case mode
-        ((z21) (z21-mode))
-        ((sim) (simulation-mode setup-id))
-        (else (error (format "initialize: ~a is not a valid mode" mode))))
+    (define/public (initialize setup-id)
+      (displayln 'setup)
+      (set! setup setup-id)
+      (if (eq? setup-id 'z21)
+        (z21-mode!)
+        (simulation-mode! setup-id))
       (set! railway (make-object railway% setup-id))
       (ext:start)
-      (set! initialized #t))
+      (async-channel-put update-channel '(initialized)))
 
-    (define/public (initialized?)
-      initialized)
+
+    (define/public (get-setup)
+      setup)
 
     (define running #f)
 
@@ -86,12 +88,13 @@
           (get-loco-d-block (send loco get-id)))
         (sleep 0.5)
         (when running (infrabel-loop)))
-      (for ((switch (in-list (send railway get-switches))))
-        (send switch
-              set-position
-              (ext:get-switch-position (send switch get-id))))
-      (set! running #t)
-      (void (thread infrabel-loop)))
+      (unless running
+        (for ((switch (in-list (send railway get-switches))))
+          (send switch
+                set-position
+                (ext:get-switch-position (send switch get-id))))
+        (set! running #t)
+        (void (thread infrabel-loop))))
 
     (define/public (stop)
       (set! running #f)

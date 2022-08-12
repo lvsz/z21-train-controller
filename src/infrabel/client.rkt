@@ -7,6 +7,7 @@
          racket/match
          racket/tcp
          "interface.rkt"
+         "message.rkt"
          "../logger.rkt")
 
 
@@ -17,10 +18,11 @@
 (define tcp-files (directory-list "resources/tcp/" #:build? #t))
 
 
-;; Struct for sending a request over TCP
+;; Struct that facilitates sending requests in need of a response
+;; header contains the method name
 ;; body contains the arguments
 ;; on-response is either #f or a function that takes the response as argument
-(struct request (body response) #:constructor-name new-request)
+(struct request (header body response) #:constructor-name new-request)
 
 ;; Read TCP port & host from file
 (define (tcp-info file)
@@ -44,9 +46,18 @@
              (lambda (exn)
                (begin0 (quick-connect (cdr files))
                        (eprintf "tcp-connect on ~a@~a failed~%" port host)))))
-          ; connection succesful, update i/o ports
+          ; Connection succesful, update i/o ports
           (let-values (((in out) (tcp-connect host port)))
+            (file-stream-buffer-mode out 'none)
             (return in out)))))))
+
+
+;; Returns a unique id generator for messages
+(define (id-gen)
+  (let ((n 0))
+    (lambda ()
+      (set! n (+ n 1))
+      n)))
 
 
 ;; For interchangeability purposes, this has the exact same interface
@@ -66,32 +77,36 @@
     (define/public (get-update)
       update-channel)
 
-    ;; Several threads may be sending & requesting data over tcp,
-    ;; the main purpose of this thread is to keep them organised
+    (define gen-id (id-gen))
+
+    ; Several threads may be sending & requesting data over TCP
+    ; The main purpose of this thread is to keep them organised
     (define (client-loop)
       (define pending (make-hash))
-      (define (update args)
-        (log/d "Received update:" args)
-        (case (car args)
+      (define (update msg)
+        (log/d "Received update:" msg)
+        (case (message-id msg)
           ((loco-speed switch)
-           (async-channel-put update-channel args))
-          (else
-           (match (hash-ref pending (car args) #f)
-             (#f (log/i "Cannot not recognize received update:" args))
-             (fn (fn (cdr args))
-                 (hash-remove! pending (car args)))))))
+           (async-channel-put
+             update-channel
+             (cons (message-id msg) (message-body msg))))
+          (else (let ((fn (hash-ref pending (message-id msg) #f)))
+                  (if fn
+                    (begin (fn (message-body msg))
+                           (hash-remove! pending (message-id msg)))
+                    (log/i "Cannot not recognize received update:" msg))))))
       (define (request req)
-        (let ((msg (request-body req))
-              (response (request-response req))
-              (id (string->symbol (symbol->string (gensym))))) ; force intern
-          (log/d "Received request" msg)
-          (write (cons id msg) tcp-out)
-          (flush-output tcp-out)
-          (when response
-            (hash-set! pending id response))))
+        (let* ((id (gen-id))
+               (msg (message id (request-header req) (request-body req))))
+          (log/d "Sending server request" msg)
+          (write msg tcp-out)
+          (when (request-response req)
+            (hash-set! pending id (request-response req)))))
       (let loop ()
         (match (sync (choice-evt tcp-in (thread-receive-evt)))
+          ; When a TCP port synchronizes, it returns itself
           ((? input-port?) (update (read tcp-in)))
+          ; Otherwise assume it's a thread message
           (_ (request (thread-receive))))
         (log/d (hash-count pending) "pending responses.")
         (loop)))
@@ -100,37 +115,38 @@
       (thread client-loop))
 
     ;; Any message to the server should be sent using this function
-    (define (communicate msg (callback #f))
+    (define (communicate header body (callback #f))
       (thread-send client-thread
-                   (new-request msg callback)))
+                   (new-request header body callback)))
 
     ;; Send a message over TCP
-    (define (put . args)
-      (communicate args))
+    (define (put header . body)
+      (communicate header body))
 
     ;; Request something over tcp
-    (define (get . args)
+    (define (get header . body)
       (define (respond-to ch)
         (lambda (r)
-          ;(unless (eof-object? response)
           (channel-put ch r)))
       (let ((ch (make-channel)))
-        (communicate args (respond-to ch))
+        (communicate header body (respond-to ch))
         (let ((response (channel-get ch)))
-          (log/d "Response:" response)
+          (log/d "Response from server:" response)
           response)))
 
+    (define/public (get-setup)
+      (get 'get-setup))
 
-    (define/public (initialize setup-id (mode 'sim))
-      (log/i "Initializing")
-      (put 'initialize setup-id mode))
+    (define/public (initialize setup-id)
+      (log/i "Connecting to server")
+      (put 'connect)
+      (if (get-setup)
+        (log/i "Server already initialized")
+        (begin (log/i "Initializing server")
+               (put 'initialize setup-id))))
 
-    (define/public (initialized?)
-      (get 'initialized?))
-
-    ;; Server already starts infrabel
     (define/public (start)
-      (void))
+      (put 'start))
     (define/public (stop)
       (put 'stop))
 

@@ -179,9 +179,8 @@
 
     ; Calling this method will initialise the nmbs% instance
     ; and then start up the application, including GUI.
-    (define/public (start #:setup-id (setup-id #f) #:mode (mode 'sim))
+    (define/public (start #:setup-id (setup-id #f))
       (define (_start)
-        (send infrabel initialize setup-id mode)
         (send infrabel start)
         (set! railway (make-object railway% setup-id))
         (set! starting-spots (find-starting-spots infrabel railway))
@@ -191,13 +190,20 @@
         (sleep 0.5)
         (set! update-thread (thread get-updates)))
       ; If there's no setup yet, open the setup window.
-      (void (if setup-id
-              (_start)
-              (new setup-window%
-                   (setups setup-ids)
-                   (callback (lambda (id)
-                               (set! setup-id id)
-                               (_start)))))))))
+      (void (let ((infra-setup (send infrabel get-setup)))
+              (cond (infra-setup
+                     (set! setup-id infra-setup)
+                     (_start))
+                    (setup-id
+                     (send infrabel initialize setup-id)
+                     (_start))
+                    (else
+                     (new setup-window%
+                          (setups setup-ids)
+                          (callback (lambda (id)
+                                      (set! setup-id id)
+                                      (send infrabel initialize id)
+                                      (_start)))))))))))
 
 
 ;; Simple struct that defines a spot where a locomotive can be added
