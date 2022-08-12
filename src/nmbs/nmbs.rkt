@@ -139,10 +139,11 @@
                           get-route
                           (send loco get-location)
                           (send railway get-d-block dest)))
-             (robo-loco (new robo-loco%
-                             (nmbs this)
-                             (loco loco)
-                             (route route))))
+             (robo-loco (and route
+                             (new robo-loco%
+                                  (nmbs this)
+                                  (loco loco)
+                                  (route route)))))
         (unless (send robo-loco start)
           (eprintf "nmbs%:route: ~a failed to reach destination ~a~%"
                    loco-id
