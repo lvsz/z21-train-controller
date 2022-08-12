@@ -74,9 +74,10 @@
            (callback
              (lambda (choice evt)
                (thread (lambda ()
-                         (let ((idx (send choice get-selection)))
-                           (when idx
-                             (callback (list-ref setups (sub1 idx)))
+                         (let ((idx (sub1 (send choice get-selection))))
+                           ; the "---" placeholder isn't a valid option
+                           (when (>= idx 0)
+                             (callback (list-ref setups idx))
                              (show #f)))))))))
     (inherit show)
     (show #t)))
