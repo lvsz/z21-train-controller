@@ -55,6 +55,7 @@
     (send loco-panel show #t)))
 
 
+;; Window allowing user to select a specific setup
 (define setup-window%
   (class frame%
     (init-field setups callback)
@@ -67,7 +68,7 @@
     (define setup-panel
       (new choice%
            (label "Current setup")
-           (choices (map symbol->string setups))
+           (choices (cons "---" (map symbol->string setups)))
            (parent parent-panel)
            (vert-margin 20)
            (callback
@@ -75,7 +76,7 @@
                (thread (lambda ()
                          (let ((idx (send choice get-selection)))
                            (when idx
-                             (callback (list-ref setups idx))
+                             (callback (list-ref setups (sub1 idx)))
                              (show #f)))))))))
     (inherit show)
     (show #t)))
