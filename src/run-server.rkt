@@ -96,7 +96,7 @@
     (unless port
       (set! port (get-port local-config)))
 
-    (void (start-server port log-level))))
+    (void (start-server port #:log log-level #:setup setup #:mode mode))))
 
 ;; Doesn't run when imported as a module elsewhere
 (module* main #f

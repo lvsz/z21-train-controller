@@ -102,7 +102,10 @@
 
 
 ;; Initialize everything and start the server
-(define (start-server port (log-level 'debug))
+(define (start-server port
+                      #:log   (log-level 'info)
+                      #:setup (setup #f)
+                      #:mode  (mode #f))
   (displayln (format "Server accepting TCP connections on port ~a" port))
   (define listener (tcp-listen port 4 #t))
   (define-values (tcp-in tcp-out)
@@ -112,9 +115,13 @@
     (case (cadr msg)
       ((initialize)
        (log/i "Connection established on port" port)
-       (cddr msg))
+       (if setup
+         (if mode
+           (list setup mode)
+           (list setup))
+         (cddr msg)))
       (else
-       (log/d "Unexpected message:" msg)
+       (log/i "Unexpected message:" msg)
        (init-args (get tcp-in)))))
   (define update-channel (make-channel))
   (when log-level
