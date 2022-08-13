@@ -14,8 +14,8 @@
          "../logger.rkt")
 
 
-;; Logging function that can be enabled
-(define-loggers log/w log/i log/d)
+;; Logging functions
+(define-loggers 'infrabel/server log/w log/i log/d)
 
 
 ;; Receive and log message
@@ -107,11 +107,11 @@
 
 ;; Initialize everything and start the server
 (define (start-server port
-                      #:log   (log-level 'info)
+                      #:log   (log-level 'warning)
                       #:setup (setup #f))
   (define listener (tcp-listen port))
   (define client-threads '())
-  (define infrabel (new infrabel% (log-level log-level)))
+  (define infrabel (new infrabel%))
 
   (define master-thread (current-thread))
   (define run-thread (current-thread))
@@ -167,7 +167,6 @@
     ((exn? stop))
 
     (when log-level
-      (set-loggers! 'infrabel/server (log/w log/i log/d)))
       (start-logger log-level))
 
     (when setup

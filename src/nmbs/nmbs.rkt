@@ -11,8 +11,8 @@
          "../logger.rkt")
 
 
-;; Logging function that can be enabled
-(define-loggers log/w log/i log/d)
+;; Logging functions
+(define-loggers 'nmbs/nmbs log/w log/i log/d)
 
 
 (define nmbs%
@@ -21,8 +21,7 @@
     (super-new)
 
     (when log-level
-      (start-logger log-level)
-      (set-loggers! 'nmbs/nmbs log/w log/i log/d))
+      (start-logger log-level))
 
     (define railway #f)
 

@@ -11,8 +11,8 @@
          "../logger.rkt")
 
 
-;; Logging function that can be enabled
-(define-loggers log/w log/i log/d)
+;; Logging functions
+(define-loggers 'infrabel/client log/w log/i log/d)
 
 (define tcp-files (directory-list "resources/tcp/" #:build? #t))
 
@@ -64,10 +64,6 @@
 (define infrabel-client%
   (class* object% (infrabel-interface<%>)
     (super-new)
-    (init (log-level 'warning))
-
-    (when log-level
-      (set-loggers! 'infrabel/client log/w log/i log/d))
 
     (define-values (tcp-in tcp-out)
       (quick-connect))

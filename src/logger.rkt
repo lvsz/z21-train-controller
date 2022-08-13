@@ -1,7 +1,6 @@
 #lang racket
 
 (provide define-loggers
-         set-loggers!
          start-logger
          stop-logger)
 
@@ -10,38 +9,37 @@
          racket/match
          (for-syntax racket/base))
 
-(define logger-thread #f)
-
+;; Directory to read from and write to
 (define log-directory "logs")
 
 ;; Make use of Racket logging functionality
 (define logger (make-logger))
 
+;; Identifier used for hash containing open output files for logging
+(define logs #f)
 
-(define-syntax (define-loggers stx)
-  (syntax-case stx ()
-    ((_ log-w log-i log-d)
-     #'(begin
-         (define log-w void)
-         (define log-i void)
-         (define log-d void)))))
+;; Identifier used for the logger thread
+(define logger-thread #f)
 
-;; Loggers for logging the logger
-(define-loggers log/w log/i log/d)
 
+;; Create a logging function for a given level and topic
+(define (_make-logger level topic)
+  (lambda msg
+    (log-message logger level topic (msg->string msg))))
 
 ;; Set 3 identifiers to loggers to loggers for different levels
 ;; The levels are 'warning, 'info and 'debug respectively
-(define-syntax (set-loggers! stx)
+(define-syntax (define-loggers stx)
   (syntax-case stx ()
     ((_ topic log-w log-i log-d)
      #'(begin
-         (let ((mklog (lambda (l t)
-                        (lambda msg
-                          (log-message logger l t (msg->string msg))))))
-           (set! log-w (mklog 'warning topic))
-           (set! log-i (mklog 'info    topic))
-           (set! log-d (mklog 'debug   topic)))))))
+         (define log-w (_make-logger 'warning topic))
+         (define log-i (_make-logger 'info    topic))
+         (define log-d (_make-logger 'debug   topic))))))
+
+
+;; Loggers for logging the logger
+(define-loggers 'logger log/w log/i log/d)
 
 
 ;; Returns the log file's path for a given topic,
@@ -50,10 +48,6 @@
   (let ((dir (format "~a/~a" log-directory topic)))
     (make-directory* dir)
     (format "~a/~a.log" dir date)))
-
-
-;; Hash containing open output files for logging
-(define logs (make-hash))
 
 
 ;; Starts the logger, creating files & directories where needed
@@ -68,7 +62,7 @@
                  (open-output-file (path topic date) #:exists 'append))))
 
   (define (logging)
-    (match (choice-evt (sync receiver) (thread-receive-evt))
+    (match (sync (choice-evt receiver (thread-receive-evt)))
       ((vector level msg _ topic)
        (let* ((date (date-string))
               (out1 (get-file #\. date))
@@ -92,18 +86,23 @@
 
   (if logger-thread
     (log/d "'start-logger' called on running logger")
-    (begin (set-loggers! 'logger log/w log/i log/d)
+    (begin (set! logs (make-hash))
            (set! logger-thread (thread logging))
            (log/i "Logger started"))))
 
 
+;; Stops the logger
+;; Tries to wait till all messages have been processed
 (define (stop-logger)
   (if logger-thread
     (begin (log/i "Stopping logger")
            (thread-send logger-thread 'kill)
-           (set! logger-thread #f)
-           (for ((file (in-hash-values logs)))
-             (close-input-port file)))
+           (if (sync/timeout 1 (thread-dead-evt logger-thread))
+             (for ((file (in-hash-values logs)))
+               (close-output-port file))
+             (begin (eprintf "Force killing logger thread.")
+                    (kill-thread logger-thread)))
+           (set! logger-thread #f))
     (begin (start-logger 'warning)
            (log/w "Logger already stopped")
            (stop-logger))))
