@@ -11,7 +11,11 @@
 (require racket/gui/base)
 (require racket/class)
 
-(provide window%)
+(provide window%
+         fat-colors)
+
+(define fat-colors
+  (vector 'orange-fat 'purple-fat 'yellow-fat 'turquoise-fat 'brown-fat 'pink-fat 'red-fat))
 
 (define window%
   (class object%
@@ -47,6 +51,7 @@
 
     ; Make some pens and brushes
     (add-pen 'red (make-object pen% "RED" 5 'solid))
+    (add-pen 'red-fat (make-object pen% "RED" 15 'solid))
     (add-pen 'yellow (make-object pen% "YELLOW" 5 'solid))
     (add-pen 'yellow-fat (make-object pen% "YELLOW" 15 'solid))
     (add-pen 'orange-fat (make-object pen% "ORANGE" 15 'solid))
@@ -54,6 +59,10 @@
     (add-pen 'black (make-object pen% "BLACK" 5 'solid))
     (add-pen 'blue (make-object pen% "BLUE" 5 'solid))
     (add-pen 'purple (make-object pen% "PURPLE" 5 'solid))
+    (add-pen 'purple-fat (make-object pen% "PURPLE" 15 'solid))
+    (add-pen 'turquoise-fat (make-object pen% "TURQUOISE" 15 'solid))
+    (add-pen 'brown-fat (make-object pen% "BROWN" 15 'solid))
+    (add-pen 'pink-fat (make-object pen% "PINK" 15 'solid))
 
     (add-brush 'transparent (make-object brush% "BLACK" 'transparent))
 

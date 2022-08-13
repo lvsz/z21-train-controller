@@ -48,8 +48,8 @@
             (p2 (get-field p end-p)))
         (send window draw-line dc-id color (car p1) (cdr p1) (car p2) (cdr p2))))))
 
-(define (add-train id previous-segment starting-segment)
-  (set! TRAINS (cons (make-object train% id (send RAILWAY find-segment previous-segment) (send RAILWAY find-segment starting-segment) 0 'orange-fat) TRAINS)))
+(define (add-train id previous-segment starting-segment (color 'orange-fat))
+  (set! TRAINS (cons (make-object train% id (send RAILWAY find-segment previous-segment) (send RAILWAY find-segment starting-segment) 0 color) TRAINS)))
 
 (define (remove-train id)
   (set! TRAINS (remf (lambda (train) (equal? (get-field id train) id)) TRAINS)))

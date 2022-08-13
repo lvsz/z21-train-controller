@@ -116,7 +116,11 @@
 ;;                                                                            ;;
 ;; ========================================================================== ;;
 
-(define add-loco add-train)
+(define color-nr 0)
+(define (add-loco id previous-segment starting-segment)
+  (let ((color (vector-ref loco-colors color-nr)))
+    (set! color-nr (modulo (add1 color-nr) (vector-length loco-colors)))
+    (add-train id previous-segment starting-segment color)))
 
 ;; ========================================================================== ;;
 ;;                                                                            ;;

@@ -12,7 +12,7 @@
 
 (require "railway.rkt" "graphics.rkt" "trains.rkt")
 
-(provide initialize-simulator launch-simulator-loop request-redraw-segments stop-simulator-loop)
+(provide initialize-simulator launch-simulator-loop request-redraw-segments stop-simulator-loop loco-colors)
 
 (define WINDOW '())
 (define REDRAW-SEGMENTS? #f)
@@ -20,6 +20,8 @@
 (define SCREEN-WIDTH 3000)
 (define SCREEN-HEIGHT 1800)
 (define FIRST-TIME? #t)
+
+(define loco-colors fat-colors)
 
 (define (draw-all-segments)
   (send RAILWAY draw-all WINDOW 'segments))
