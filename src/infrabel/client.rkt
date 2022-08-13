@@ -72,6 +72,7 @@
     (define/public (get-update)
       update-channel)
 
+    ; `id-gen` returns a lambda to generate ids
     (define gen-id (id-gen))
 
     ; Several threads may be sending & requesting data over TCP
@@ -133,8 +134,6 @@
       (get 'get-setup))
 
     (define/public (initialize setup-id)
-      (log/i "Connecting to server")
-      (put 'connect)
       (if (get-setup)
         (log/i "Server already initialized")
         (begin (log/i "Initializing server")
@@ -168,5 +167,8 @@
     (define/public (get-d-block-ids)
       (get 'get-d-block-ids))
     (define/public (get-d-block-statuses)
-      (get 'get-d-block-statuses))))
+      (get 'get-d-block-statuses))
+
+    (log/i "Connecting to server")
+    (put 'connect)))
 
