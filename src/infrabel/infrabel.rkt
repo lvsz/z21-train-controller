@@ -6,13 +6,16 @@
          racket/class
          racket/list
          "interface.rkt"
+         "../logger.rkt"
          "../railway/railway.rkt"
          (prefix-in z21: "../z21/interface.rkt")
          (prefix-in sim: "../simulator/interface.rkt"))
 
+;; Logger functions
+(define-loggers 'infrabel/infrabel log/w log/i log/d)
+
 (define infrabel%
   (class* object% (infrabel-interface<%>)
-    (init-field (log-level #f))
     (super-new)
 
     (define railway #f)
@@ -67,7 +70,6 @@
     (define setup #f)
 
     (define/public (initialize setup-id)
-      (displayln 'setup)
       (set! setup setup-id)
       (if (eq? setup-id 'z21)
         (z21-mode!)
