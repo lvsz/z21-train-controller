@@ -38,7 +38,7 @@
 ;;   otherwise it will skip that step (assuming the given setup exists)
 (define (run-nmbs #:solo? (solo #f)
                   #:setup (setup #f)
-                  #:log   (log-level 'info))
+                  #:log   (log-level 'warning))
   (let ((args (current-command-line-arguments)))
     (let loop ((i 0))
       (when (< i (vector-length args))

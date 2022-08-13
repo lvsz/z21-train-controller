@@ -38,7 +38,7 @@
 ;; Run server, configuring it with given arguments
 (define (run-server #:host  (host "localhost")
                     #:port  (port #f)
-                    #:log   (log-level 'info)
+                    #:log   (log-level 'warning)
                     #:setup (setup #f))
   (let ((args (current-command-line-arguments)))
     (let loop ((i 0))
