@@ -91,13 +91,20 @@
         (else (log/i "Unrecongized message: ~a" msg)))))
 
   (define (update-handler datum)
-    (when (or (not (eq? (car datum) 'loco-speed))
-              (set-member? (cadr datum) locos))
-      (put (car datum) (cdr datum))))
+    (cond ((not (pair? datum))
+           (log/w "Invalid update received:" datum))
+          ((not (eq? (car datum) 'loco-speed))
+           (log/d "Sending update to client:" datum)
+           (put (car datum) (cdr datum)))
+          ((and (pair? (cdr datum))
+                (set-member? (cadr datum) locos))
+           (log/d "Sending loco-speed update to client:" datum)
+           (put (car datum) (cdr datum)))
+          (else (log/w "Invalid update received:" datum))))
 
   (define (client-loop)
     ; If a TCP port synchronizes, it returns the port
-    ; So it's not a port, it's an update
+    ; If it's not a port, it's an update
     (if (input-port? (sync (choice-evt tcp-in (thread-receive-evt))))
       (tcp-handler (get))
       (update-handler (thread-receive)))
