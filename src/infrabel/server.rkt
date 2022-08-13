@@ -14,8 +14,8 @@
          "../logger.rkt")
 
 
-(define log/i void)
-(define log/d void)
+;; Logging function that can be enabled
+(define-loggers log/w log/i log/d)
 
 
 ;; Receive and log message
@@ -167,7 +167,7 @@
     ((exn? stop))
 
     (when log-level
-      (set!-values (log/i log/d) (make-loggers 'infrabel/server))
+      (set-loggers! 'infrabel/server (log/w log/i log/d)))
       (start-logger log-level))
 
     (when setup

@@ -12,8 +12,7 @@
 
 
 ;; Logging function that can be enabled
-(define log/i void)
-(define log/d void)
+(define-loggers log/w log/i log/d)
 
 (define tcp-files (directory-list "resources/tcp/" #:build? #t))
 
@@ -65,10 +64,10 @@
 (define infrabel-client%
   (class* object% (infrabel-interface<%>)
     (super-new)
-    (init (log-level 'debug))
+    (init (log-level 'warning))
 
     (when log-level
-      (set!-values (log/i log/d) (make-loggers 'infrabel/client)))
+      (set-loggers! 'infrabel/client log/w log/i log/d))
 
     (define-values (tcp-in tcp-out)
       (quick-connect))

@@ -10,24 +10,32 @@
          "../railway/railway.rkt"
          "../logger.rkt")
 
+
+;; Logging function that can be enabled
+(define-loggers log/w log/i log/d)
+
+
 (define nmbs%
   (class object%
-    (init-field infrabel (log-level 'info))
+    (init-field infrabel (log-level 'warning))
     (super-new)
 
     (when log-level
-      (start-logger log-level))
+      (start-logger log-level)
+      (set-loggers! 'nmbs/nmbs log/w log/i log/d))
 
     (define railway #f)
 
     ; List of functions to be called when a switch changes
     (define switch-listeners '())
     (define/public (add-switch-listener fn)
+      (log/d "Adding switch listener")
       (set! switch-listeners (cons fn switch-listeners)))
 
     ; List of functions to be called when a detection block changes
     (define d-block-listeners '())
     (define/public (add-d-block-listener fn)
+      (log/d "Adding d-block listener")
       (set! d-block-listeners
             (cons fn d-block-listeners)))
 
@@ -134,20 +142,31 @@
         '()))
 
     (define/public (route loco-id dest)
-      (let* ((loco (get-loco loco-id))
-             (route (send railway
-                          get-route
-                          (send loco get-location)
-                          (send railway get-d-block dest)))
-             (robo-loco (and route
-                             (new robo-loco%
-                                  (nmbs this)
-                                  (loco loco)
-                                  (route route)))))
-        (unless (send robo-loco start)
-          (eprintf "nmbs%:route: ~a failed to reach destination ~a~%"
-                   loco-id
-                   (send dest get-id)))))
+      (let* ((loco  (get-loco loco-id))
+             (from  (send loco get-location))
+             (to    (send railway get-d-block dest))
+             (route (send railway get-route from to))
+             (on-finish
+               (lambda ()
+                 (let ((loc (send loco get-location)))
+                   (if (eq? loc to)
+                     (log/i "Loco" loco "arrived successfully at" to)
+                     (log/w "Route failure:" 'loco loco "stopped at" loc
+                            "after failing to reach" to
+                            "and starting from" from)))))
+             (robo-loco
+               (and route
+                    (new robo-loco%
+                         (nmbs this)
+                         (loco loco)
+                         (route route)
+                         (on-finish on-finish)))))
+        (log/d "Planned route for loco" loco ': route)
+        (if robo-loco
+          (begin (log/i "Loco" loco "starting route from" from 'to to)
+                 (send robo-loco start))
+          (log/i "Invalid route for loco" loco-id 'from from 'to dest))))
+
 
     ; Update detection block statuses & loco speeds on regular intervals.
     (define (get-updates)
