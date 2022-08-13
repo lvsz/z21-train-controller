@@ -6,7 +6,9 @@
          switch?
          top-track?
          top-track
-         setup-ids)
+         setup-ids
+         get-id
+         get-ids)
 
 (require racket/class
          racket/list
@@ -14,7 +16,18 @@
          "loco.rkt"
          "tracks.rkt"
          "setup.rkt"
-         "../data/pqueue.rkt")
+         "../data/pqueue.rkt"
+         (for-syntax racket/base))
+
+
+;; Helper syntax to retrieve an objects id
+(define-syntax (get-id stx)
+  (syntax-case stx ()
+    ((_ obj) #'(send obj get-id))))
+
+;; Helper function to turn a list of objects into a list of ids
+(define (get-ids lst)
+  (map (lambda (obj) (send obj get-id)) lst))
 
 
 ;; An instance of the railway% class is can load a chosen railway setup
