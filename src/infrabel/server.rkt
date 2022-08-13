@@ -114,9 +114,9 @@
   (define infrabel (new infrabel%))
 
   (define master-thread (current-thread))
-  (define run-thread (current-thread))
+  (define updater-thread (current-thread))
 
-  (define (run)
+  (define (update-loop)
     ; Accepting clients and updating them both utilise the client-threads list
     ; To prevent race conditions, these get handled in the same thread
     (match (sync (choice-evt (tcp-accept-evt listener)
@@ -137,14 +137,17 @@
       ; Else it's an infrabel update for the threads to handle
       ; Also remove any threads that are no longer running
       (update
-       (set! client-threads (map (lambda (c) (thread-send c update))
-                                 (filter thread-running? client-threads)))))
-    (run))
+       (log/d "Sending update to client threads:" update)
+       (set! client-threads (for/list ((ct (in-list client-threads))
+                                       #:when (thread-running? ct))
+                              (thread-send ct update)
+                              ct))))
+    (update-loop))
 
   (define (stop exn)
     (log/i "Server shutting down.")
     ; Kill run loop and client threads
-    (for-each kill-thread (cons run-thread client-threads))
+    (for-each kill-thread (cons updater-thread client-threads))
     (send infrabel stop)
     (cond ((eq? exn 'request)
            (log/i "Infrabel server stopped by request"))
@@ -155,6 +158,7 @@
     (tcp-close listener)
     (kill-thread master-thread))
 
+  ;; A "REPL" tht only accepts the 'exit' comand
   (define (repl)
     (displayln "Enter 'exit' to stop server.")
     (display "> ")
@@ -186,5 +190,5 @@
 
     (begin0 (send infrabel start)
             (log/i "Infrabel started")
-            (set! run-thread (thread run)))))
+            (set! updater-thread (thread update-loop)))))
 
