@@ -21,7 +21,8 @@
 (define help-string
   "usage: run-nmbs [-p | --port NUM]
                 [-s | --setup NAME|list]
-                [-l | --log info|debug]\n")
+                [-l | --log info|debug]
+                [--solo]\n")
 
 ;; Print help string and exit
 (define (help out)
@@ -30,14 +31,14 @@
 
 
 ;; This starts up the program.
-;;   if #:local? = #t : everything runs in a single instance
-;;   if #:local? = #f : it needs to connect with a server
+;;   if #:solo? = #t : everything runs in a single instance
+;;   if #:solo? = #f : it needs to connect with a server
 ;;     the server can be either localhost or raspberypi
 ;;   if #:setup = #f : gives the user a selection screen to pick a setup
 ;;   otherwise it will skip that step (assuming the given setup exists)
-(define (run-nmbs #:local? (local #f)
-                  #:setup  (setup #f)
-                  #:log    (log-level 'info))
+(define (run-nmbs #:solo? (solo #f)
+                  #:setup (setup #f)
+                  #:log   (log-level 'info))
   (let ((args (current-command-line-arguments)))
     (let loop ((i 0))
       (when (< i (vector-length args))
@@ -59,6 +60,8 @@
                ((debug info)
                 (set! log-level level))
                (else (eprintf "Log level must be 'info' or 'debug'~%")))))
+          ((--solo)
+           (set! solo #t))
           ((--help -h help)
            (help (current-output-port)))
           (else (eprintf "Invalid argument: ~a~%" (vector-ref args i))
@@ -66,7 +69,7 @@
         (loop (add1 i)))))
 
   (define infrabel
-    (if local
+    (if solo
       (new infrabel%)
       (new infrabel-client%)))
 
