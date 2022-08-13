@@ -5,6 +5,7 @@
 (require racket/async-channel
          racket/class
          racket/list
+         racket/match
          "gui.rkt"
          "robo-loco.rkt"
          "../railway/railway.rkt"
@@ -15,6 +16,8 @@
 (define-loggers 'nmbs/nmbs log/w log/i log/d)
 
 
+;; The nmbs% class communicates with an infrabel% instance to control locos
+;; Controlling locos is made possible through a GUI
 (define nmbs%
   (class object%
     (init-field infrabel (log-level 'warning))
@@ -46,22 +49,30 @@
         (hash-set! loco-speed-listeners loco-id (list fn))))
 
 
-    (define (get-id obj)
-      (send obj get-id))
     (define/public (get-loco-ids)
-      (map get-id (send railway get-locos)))
+      (get-ids (send railway get-locos)))
+
     (define/public (get-switch-ids)
-      (map get-id (send railway get-switches)))
+      (get-ids (send railway get-switches)))
+
     (define/public (get-d-block-ids)
-      (map get-id (send railway get-d-blocks)))
+      (get-ids (send railway get-d-blocks)))
+
 
     (define/public (get-switch-position id)
       (send (send railway get-switch id) get-position))
-    (define/public (set-switch-position id pos)
-      (send infrabel set-switch-position id pos)
+
+    ; Set switch position without notifying infrabel
+    (define (_set-switch-position id pos)
       (send (send railway get-switch id) set-position pos)
       (for ((lstnr (in-list switch-listeners)))
         (lstnr id pos)))
+
+    ; Set switch position and notify infrabel
+    (define/public (set-switch-position id pos)
+      (send infrabel set-switch-position id pos)
+      (_set-switch-position id pos))
+
     (define/public (set-switch-track id track-id)
       (let ((switch (send railway get-switch id))
             (track (send railway get-track track-id)))
@@ -75,29 +86,34 @@
                  (let ((ss (get-field superior s)))
                    (unless (eq? s ss)
                      (rec ss s))
-                   (set-switch-track (send s get-id) (send t get-id)))))
+                   (set-switch-track (get-id s) (get-id t)))))
               (else
-               (error
-                 (format "set-switch-track: ~a not part of ~a" track-id id))))))
+               (log/w "set-switch-track:" track-id "not part of" id)))))
+
 
     (define (get-loco id)
       (send railway get-loco id))
+
     (define/public (get-loco-speed id)
       (abs (send infrabel get-loco-speed id)))
 
-    ; Change the speed, notifying any listeners
-    (define/public (set-loco-speed id speed)
+    ; Change the speed, notifying any listeners but not infrabel
+    (define (_set-loco-speed id speed)
       (let ((speed (abs speed)))
         (for ((notify (in-list (hash-ref loco-speed-listeners id))))
           (notify speed))
         (send infrabel set-loco-speed id
               (* (send (get-loco id) get-direction) speed))))
+
+    ; Change the speed, notifying any listeners and infrabel
+    (define/public (set-loco-speed id speed)
+      (send infrabel set-loco-speed id speed)
+      (_set-loco-speed id speed))
+
     (define/public (change-loco-direction id)
       (send infrabel set-loco-speed id (- (send infrabel get-loco-speed id)))
       (send (get-loco id) change-direction))
 
-    ; Nmbs generates a list of viable starting spots
-    ; to add new locomotives
     (define/public (add-loco spot-id)
       (let* ((spot (hash-ref starting-spots spot-id))
              (curr-id (starting-spot-current spot))
@@ -167,27 +183,32 @@
           (log/i "Invalid route for loco" loco-id 'from from 'to dest))))
 
 
-    ; Update detection block statuses & loco speeds on regular intervals.
+    ; Update detection block statuses & loco speeds on regular intervals
+    ; Methods prefixed with an underscore indicate private alternative methods
+    ; These are used in order to not notify infrabel of changes it sent itself
     (define (get-updates)
+      ; Updates could come as lambdas from other threads
+      ; Or as updates sent from infrabel
+      (let ((update (sync (choice-evt (thread-receive-evt)
+                                      (send infrabel get-update)))))
+        (log/d "get-updates sync result:" update)
+        (match update
+          ((? evt?) ; `thread-receive-evt` synchronizes to itself
+           ((thread-receive))) ; Call the received lambda
+          ((list 'switch id pos) ; Infrabel sent switch position update
+           (_set-switch-position id pos))
+          ((list 'loco-speed id speed) ; Infrabel sent loco speed update
+           (_set-loco-speed id speed))
+          ((list 'd-block id 'occupy) ; Infrabel sent d-block status update
+           (send (send railway get-d-block id) occupy))
+          ((list 'd-block id 'clear) ; Infrabel sent d-block status update
+           (send (send railway get-d-block id) clear))
+          (_
+           (log/w "Unrecognized update format:" update))))
       ; Other methods in this class like remove-loco may send lambdas to run
-      (when (sync/timeout 0.1 (thread-receive-evt))
-        ((thread-receive)))
-      (let ((update (async-channel-try-get (send infrabel get-update))))
-        (when update
-          (case (car update)
-            ((switch)
-             (send/apply this set-switch-position (cdr update)))
-            ((loco-speed)
-             (let ((loco-id (cadr update))
-                   (new-speed (caddr update)))
-             (for ((lstnr (in-list (hash-ref loco-speed-listeners loco-id))))
-               (lstnr loco-id new-speed)))))))
       (for ((db (in-list (send infrabel get-d-block-statuses))))
         (for ((notify (in-list d-block-listeners)))
           (notify (car db) (cdr db))))
-      ;(for ((loco (in-list (get-loco-ids))))
-        ;(for ((notify (in-list (hash-ref loco-speed-listeners loco '()))))
-          ;(notify (get-loco-speed loco))))
       (get-updates))
 
     (define/public (stop)
@@ -202,7 +223,11 @@
       (define (_start)
         (send infrabel start)
         (set! railway (make-object railway% setup-id))
-        (set! starting-spots (find-starting-spots infrabel railway))
+        (set! starting-spots (find-starting-spots this railway))
+        (for ((switch-id (in-list (get-switch-ids))))
+          (_set-switch-position
+            switch-id
+            (send infrabel get-switch-position switch-id)))
         (new window%
              (nmbs this)
              (atexit (lambda () (send this stop))))
@@ -231,25 +256,19 @@
 ;; only detection blocks are allowed as starting tracks
 (struct starting-spot (previous current))
 
-(define (find-starting-spots infrabel railway)
-  (let*
-    ((db-ids       (send infrabel get-d-block-ids))
-     (switch-ids   (send infrabel get-switch-ids))
-     (infrabel-ids (append db-ids switch-ids))
-     (spots
-       (for/list ((track-id (in-list (map (lambda (db) (send db get-id))
-                                          (send railway get-d-blocks)))))
-         ; First make sure there's a match
-         (and (memq track-id infrabel-ids)
-              (let* ((track (send railway get-track track-id))
-                     ; Get ids from tracks connected to current track
-                     (ids (map (lambda (s) (send s get-id))
-                               (send track get-connected-tracks)))
-                     ; Check if any connected track can be found in infrabel
-                     (prev (findf (lambda (x) (memq x infrabel-ids)) ids)))
-                ; Return id & a struct if result was a match
-                (and prev
-                     (cons track-id (starting-spot prev track-id))))))))
+(define (find-starting-spots nmbs railway)
+  (let* ((db-ids       (send nmbs get-d-block-ids))
+         (track-ids    (append db-ids (send nmbs get-switch-ids)))
+         (spots
+           (for/list ((db-id (in-list db-ids)))
+             (let* ((db (send railway get-track db-id))
+                    ; Get ids from tracks connected to current track
+                    (ids (get-ids (send db get-connected-tracks)))
+                    ; Check if any connected track can be found
+                    (prev-id (findf (lambda (x) (memq x track-ids)) ids)))
+               ; Return id & a struct if result was a match
+               (and prev-id
+                    (cons db-id (starting-spot prev-id db-id)))))))
     (for/hash ((spot (in-list spots))
                #:when spot)
       (values (car spot) (cdr spot)))))

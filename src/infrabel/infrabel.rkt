@@ -76,7 +76,7 @@
         (simulation-mode! setup-id))
       (set! railway (make-object railway% setup-id))
       (ext:start)
-      (async-channel-put update-channel '(initialized)))
+      (send-update 'initialized))
 
 
     (define/public (get-setup)
@@ -87,9 +87,10 @@
     (define/public (start)
       (define (infrabel-loop)
         (for ((loco (in-list (send railway get-locos))))
-          (get-loco-d-block (send loco get-id)))
+          (get-loco-d-block (get-id loco)))
         (sleep 0.5)
-        (when running (infrabel-loop)))
+        (when running
+          (infrabel-loop)))
       (unless running
         (for ((switch (in-list (send railway get-switches))))
           (send switch
@@ -121,31 +122,40 @@
     (define/public (set-loco-speed id speed)
       (ext:set-loco-speed! id speed))
 
-    ; This procedure keeps track of a loco's movement by
-    ; comparing the detection blocks it has traversed.
+    ; This procedure keeps track of a loco's movement
+    ; It compares the detection blocks it has traversed
     (define/public (get-loco-d-block loco-id)
-      (let* ((new-d-block-id (ext:get-loco-d-block loco-id))
-             (new-d-block (and new-d-block-id (get-track new-d-block-id)))
-             (loco (send railway get-loco loco-id))
-             (old-db (send loco get-d-block)))
+      (define (occupy d-block)
+        (log/d "D-block status update:" d-block 'occupy)
+        (send d-block occupy)
+        (send-update 'd-block (get-id d-block) 'occupy))
+      (define (clear d-block)
+        (log/d "D-block status update:" d-block 'clear)
+        (send d-block clear)
+        (send-update 'd-block (get-id d-block) 'clear))
+      (let* ((loco      (send railway get-loco loco-id))
+             (old-db    (send loco get-d-block))
+             (new-db-id (ext:get-loco-d-block loco-id))
+             (new-db    (and new-db-id (get-track new-db-id))))
         (cond
           ; Nothing changed
-          ((eq? new-d-block old-db)
-           (void))
-          ; Loco is on a detection block but wasn't before
-          ((and new-d-block (not old-db))
-           (send new-d-block occupy)
-           (send loco update-location new-d-block))
+          ((eq? new-db old-db)
+           (log/d "No d-block update for" loco 'on old-db))
           ; Loco is on a new detection block
-          ((and new-d-block old-db)
-           (send old-db clear)
-           (send new-d-block occupy)
-           (send loco update-location new-d-block))
+          (new-db
+           (log/i "Loco" loco "entered" new-db)
+           (occupy new-db)
+           (send loco update-location new-db)
+           ; Clear previous d-block if there was one
+           (when old-db
+             (log/i 'Loco loco 'left old-db)
+             (clear old-db)))
           ; Else loco left a detection block
           (else
-           (send old-db clear)
+           (log/i 'Loco loco 'left old-db)
+           (clear old-db)
            (send loco left-d-block)))
-        new-d-block-id))
+        new-db-id))
 
     (define/public (get-d-block-ids)
       (ext:get-d-block-ids))
@@ -166,22 +176,25 @@
                 (s-pos (if (eq? (get-field track-1 sup-switch) switch)
                          1
                          2)))
-            (set-switch-position s-id s-pos)
-            (async-channel-put update-channel (list 'switch s-id s-pos))))
-        (send switch set-position position)
-        (ext:set-switch-position! id position)))
+            (set-switch-position s-id s-pos)))
+        ; Skip when switch is already in the correct position
+        (unless (eq? position
+                     (send switch get-position)
+                     (ext:get-switch-position id))
+          (send-update 'switch id position)
+          (send switch set-position position)
+          (ext:set-switch-position! id position))))
 
     (define/public (get-d-block-statuses)
       (for/list ((d-block (in-list (send railway get-d-blocks))))
         (cons (send d-block get-id) (send d-block get-status))))
 
     (define update-channel (make-async-channel))
+    (define (send-update tag . args)
+      (async-channel-put update-channel (cons tag args)))
     (define/public (get-update)
       update-channel)
 
     (define (get-track id)
-      (send railway get-track id))
-
-    (define (prevent-collisions)
-      (void))))
+      (send railway get-track id))))
 

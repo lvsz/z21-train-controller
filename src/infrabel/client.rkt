@@ -58,6 +58,9 @@
       (set! n (+ n 1))
       n)))
 
+;; Check whether a value could be a request id
+(define request-id? natural?)
+
 
 ;; For interchangeability purposes, this has the exact same interface
 ;; as the infrabel% class in infrabel.rkt
@@ -69,6 +72,8 @@
       (quick-connect))
 
     (define update-channel (make-async-channel))
+    (define (send-update update)
+      (async-channel-put update-channel update))
     (define/public (get-update)
       update-channel)
 
@@ -81,16 +86,15 @@
       (define pending (make-hash))
       (define (update msg)
         (log/d "Received update:" msg)
-        (case (message-id msg)
-          ((loco-speed switch)
-           (async-channel-put
-             update-channel
-             (cons (message-id msg) (message-body msg))))
-          (else (let ((fn (hash-ref pending (message-id msg) #f)))
-                  (if fn
-                    (begin (fn (message-body msg))
-                           (hash-remove! pending (message-id msg)))
-                    (log/i "Cannot not recognize received update:" msg))))))
+        ; If id doesn't fit that of a request, forward to update-channel
+        ; Otherwise try to fill in pending request
+        (if (not (request-id? (message-id msg)))
+          (send-update (cons (message-id msg) (message-body msg)))
+          (let ((fn (hash-ref pending (message-id msg) #f)))
+            (if fn
+              (begin (fn (message-body msg))
+                     (hash-remove! pending (message-id msg)))
+              (log/w "Cannot not recognize received update:" msg)))))
       (define (request req)
         (let* ((id (gen-id))
                (msg (message id (request-header req) (request-body req))))
@@ -104,7 +108,7 @@
           ((? input-port?) (update (read tcp-in)))
           ; Otherwise assume it's a thread message
           (_ (request (thread-receive))))
-        (log/d (hash-count pending) "pending responses.")
+        (log/d "Pending responses:" pending)
         (loop)))
 
     (define client-thread
@@ -119,13 +123,14 @@
     (define (put header . body)
       (communicate header body))
 
-    ;; Request something over tcp
+    ;; Request something over TCP
     (define (get header . body)
       (define (respond-to ch)
         (lambda (r)
           (channel-put ch r)))
       (let ((ch (make-channel)))
         (communicate header body (respond-to ch))
+        ; Blocks until response is received
         (let ((response (channel-get ch)))
           (log/d "Response from server:" response)
           response)))
