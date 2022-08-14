@@ -81,14 +81,14 @@
        (log/w "Logger receiver received unkown message: " datum)))
     (logging))
 
-  (unless (directory-exists? log-directory)
-    (make-directory log-directory))
-
-  (if logger-thread
-    (log/d "'start-logger' called on running logger")
-    (begin (set! logs (make-hash))
-           (set! logger-thread (thread logging))
-           (log/i "Logger started"))))
+  (when level
+    (unless (directory-exists? log-directory)
+      (make-directory log-directory))
+    (if logger-thread
+      (log/d "'start-logger' called on running logger")
+      (begin (set! logs (make-hash))
+             (set! logger-thread (thread logging))
+             (log/i "Logger started")))))
 
 
 ;; Stops the logger
