@@ -38,8 +38,11 @@
     (define d-block-listeners '())
     (define/public (add-d-block-listener fn)
       (log/d "Adding d-block listener")
-      (set! d-block-listeners
-            (cons fn d-block-listeners)))
+      (set! d-block-listeners (cons fn d-block-listeners)))
+    (define (notify-d-block-listeners ids-statuses)
+      (for* (((id status) (in-hash ids-statuses))
+             (notify (in-list d-block-listeners)))
+        (notify id status)))
 
     ; Hashmap of lists of functions called when a loco changes speed
     (define loco-speed-listeners (make-hash))
@@ -200,20 +203,22 @@
           ((list 'loco-speed id speed) ; Infrabel sent loco speed update
            (_set-loco-speed id speed))
           ((list 'd-block id 'occupy) ; Infrabel sent d-block status update
-           (send (send railway get-d-block id) occupy))
+           (notify-d-block-listeners (send (send railway get-track id) occupy)))
           ((list 'd-block id 'clear) ; Infrabel sent d-block status update
-           (send (send railway get-d-block id) clear))
-          (_
-           (log/w "Unrecognized update format:" update))))
-      ; Other methods in this class like remove-loco may send lambdas to run
-      (for ((db (in-list (send infrabel get-d-block-statuses))))
-        (for ((notify (in-list d-block-listeners)))
-          (notify (car db) (cdr db))))
+           (notify-d-block-listeners (send (send railway get-track id) clear)))
+          ((list 'kill)
+           (log/w "Infrabel server shut down")
+           (_stop))
+          (_ (log/w "Unrecognized update format:" update))))
       (get-updates))
+
+    (define (_stop)
+      (log/i "Shutting down nmbs")
+      (kill-thread (current-thread)))
 
     (define/public (stop)
       (send infrabel stop)
-      (kill-thread (current-thread)))
+      (_stop))
 
     (define update-thread #f)
 
@@ -224,6 +229,7 @@
         (send infrabel start)
         (set! railway (make-object railway% setup-id))
         (set! starting-spots (find-starting-spots this railway))
+        ; Request correct switch position from infrabel
         (for ((switch-id (in-list (get-switch-ids))))
           (_set-switch-position
             switch-id
@@ -231,23 +237,29 @@
         (new window%
              (nmbs this)
              (atexit (lambda () (send this stop))))
-        (sleep 0.5)
         (set! update-thread (thread get-updates)))
       ; If there's no setup yet, open the setup window.
-      (void (let ((infra-setup (send infrabel get-setup)))
-              (cond (infra-setup
-                     (set! setup-id infra-setup)
-                     (_start))
-                    (setup-id
-                     (send infrabel initialize setup-id)
-                     (_start))
-                    (else
-                     (new setup-window%
-                          (setups setup-ids)
-                          (callback (lambda (id)
-                                      (set! setup-id id)
-                                      (send infrabel initialize id)
-                                      (_start)))))))))))
+      (let ((infra-setup (send infrabel get-setup)))
+        (cond
+          ; Prioritize infrabel's setup if it has one
+          (infra-setup
+           (set! setup-id infra-setup)
+           (log/i "Starting using infrabel's setup:" infra-setup)
+           (_start))
+          ; Otherwise use given setup if one was provided
+          (setup-id
+           (send infrabel initialize setup-id)
+           (log/i "Starting using given setup:" setup-id)
+           (_start))
+          ; Else create window to select setup
+          (else
+           (void (new setup-window%
+                      (setups setup-ids)
+                      (callback (lambda (id)
+                                  (set! setup-id id)
+                                  (send infrabel initialize id)
+                                  (log/i "Starting using selected setup:" id)
+                                  (_start)))))))))))
 
 
 ;; Simple struct that defines a spot where a locomotive can be added
