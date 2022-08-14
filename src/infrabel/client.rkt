@@ -59,7 +59,7 @@
       n)))
 
 ;; Check whether a value could be a request id
-(define request-id? natural?)
+(define request-id? integer?)
 
 
 ;; For interchangeability purposes, this has the exact same interface
