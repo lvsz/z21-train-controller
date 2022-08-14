@@ -46,4 +46,14 @@
         #f))
 
     (define/public (left-d-block)
-      (set! on-d-block? #f))))
+      (set! on-d-block? #f))
+
+    ;; Custom printing functions to make debugging easier
+    (define/public (custom-write port)
+      (fprintf port
+               "(object:loco:~a:[~a->~a] ...)"
+               id
+               previous-track
+               current-track))
+    (define/public (custom-display port)
+      (fprintf port "loco:~a" id))))
