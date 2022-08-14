@@ -157,30 +157,30 @@
       ; Blocks if a loco is getting added or removed
       (semaphore-wait loco-semaphore)
       (let ((loco (send railway get-loco loco-id)))
-        (when loco ; Make sure loco wasn't delete between method call and now
-          (let* ((old-db    (send loco get-d-block))
-                 (new-db-id (ext:get-loco-d-block loco-id))
-                 (new-db    (and new-db-id (get-track new-db-id))))
-            (cond
-              ; Nothing changed
-              ((eq? new-db old-db)
-               (log/d "No d-block update for" loco 'on old-db))
-              ; Loco is on a new detection block
-              (new-db
-               (log/i "Loco" loco "entered" new-db)
-               (occupy new-db)
-               (send loco update-location new-db)
-               ; Clear previous d-block if there was one
-               (when old-db
-                 (log/i 'Loco loco 'left old-db)
-                 (clear old-db)))
-              ; Else loco left a detection block
-              (else
-               (log/i 'Loco loco 'left old-db)
-               (clear old-db)
-               (send loco left-d-block)))
-            (semaphore-post loco-semaphore)
-            new-db-id))))
+        (and loco ; Return #f if loco no longer exists
+             (let* ((old-db    (send loco get-d-block))
+                    (new-db-id (ext:get-loco-d-block loco-id))
+                    (new-db    (and new-db-id (get-track new-db-id))))
+               (cond
+                 ; Nothing changed
+                 ((eq? new-db old-db)
+                  (log/d "No d-block update for" loco 'on old-db))
+                 ; Loco is on a new detection block
+                 (new-db
+                  (log/i "Loco" loco "entered" new-db)
+                  (occupy new-db)
+                  (send loco update-location new-db)
+                  ; Clear previous d-block if there was one
+                  (when old-db
+                    (log/i 'Loco loco 'left old-db)
+                    (clear old-db)))
+                 ; Else loco left a detection block
+                 (else
+                  (log/i 'Loco loco 'left old-db)
+                  (clear old-db)
+                  (send loco left-d-block)))
+               (semaphore-post loco-semaphore)
+               new-db-id))))
 
     (define/public (get-switch-position id)
       (ext:get-switch-position id))
