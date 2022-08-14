@@ -134,27 +134,31 @@
     ; Returns an assoc list containing ids and updated statuses
     (define/public (occupy)
       (set! status 'red)
-      (cons (cons id 'red)
-            (for/list ((db (in-list connected-blocks))
-                       #:when (eq? (get-field status db) 'green))
-              (set-field! status db 'orange)
-              (cons (get-field id db) 'orange))))
+      (hash-set (for/hash ((db (in-list connected-blocks))
+                           #:when (eq? (get-field status db) 'green))
+                  (set-field! status db 'orange)
+                  (values (get-field id db) 'orange))
+                id
+                'red))
 
     ; Sets status to 'green if connected blocks are clear
     ; Sets status to 'orange if a connected block is occupied
     ; Tries clearing connected blocks
-    ; Returns an assoc list containing ids and updated statuses
+    ; Returns an hash containing ids and updated statuses
     (define/public (clear)
-      (if (for/or ((db (in-list connected-blocks)))
-            (eq? (get-field status db) 'red))
-        (begin (set! status 'orange)
-               (list (cons id 'orange)))
-        (begin (set! status 'green)
-               (cons (cons id 'green)
-                     (for/list ((db (in-list connected-blocks))
-                                #:unless (eq? (get-field status db) 'green))
-                       (send db clear)
-                       (cons (get-field id db) (get-field status db)))))))
+      (set! status 'green)
+      ; Make hash containing updated statuses from neighbors
+      (let ((change-hash (for/hash ((db (in-list connected-blocks))
+                                    ; Only try clearing 'orange connected blocks
+                                    #:when (eq? (get-field status db) 'orange))
+                           (send db clear)
+                           (values (get-field id db) (get-field status db)))))
+        (when (for/or ((db (in-list connected-blocks)))
+                (eq? (get-field status db) 'red))
+          ; Update  status to 'orange if a neighbor is occupied
+          (set! status 'orange))
+        ; Return hash with status updates of this block and those connected
+        (hash-set change-hash id status)))
 
     ; Custom printing methods to make debugging easier
     (define/override (custom-write port)
