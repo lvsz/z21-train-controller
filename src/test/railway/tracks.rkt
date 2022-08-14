@@ -156,3 +156,7 @@
     (run-tests block-tests)
     (run-tests switch-tests))
 
+;; Doesn't run when imported as a module elsewhere
+(module* main #f
+  (run))
+
