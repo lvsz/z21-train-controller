@@ -44,20 +44,24 @@
       (syntax-rules ()
         ((_ tag id body) (output-to tcp-out id tag body))))
 
+    (define parent-thread (current-thread))
+
     ; Keep track of locos in case of disconnect
     (define locos (mutable-set))
 
     (define (stop msg)
+      (kill-thread client-thread)
       (case msg
         ((disconnect request)
          (for ((loco (in-set locos)))
            (send infrabel remove-loco loco)))
         ((kill)
-         (put 'kill 'kill 'kill)))
+         (put #f 'kill #f))
+        ((server)
+         (thread-send parent-thread 'kill)))
       (tcp-abandon-port tcp-in)
       (tcp-abandon-port tcp-out)
-      (log/i "Connection with client ended:" msg)
-      (kill-thread client-thread))
+      (log/i "Connection with client ended:" msg))
 
     (define (tcp-handler msg)
       (define-syntax reply
@@ -94,6 +98,8 @@
            (send infrabel start))
           ((stop)
            (stop 'request))
+          ((stop-server)
+           (stop 'server))
           (else (log/i "Unrecongized message: ~a" msg)))))
 
     (define (update-handler datum)
@@ -123,7 +129,8 @@
       (thread-running? client-thread))
 
     (define/public (kill)
-      (stop 'kill))
+      (when (running?)
+        (stop 'kill)))
 
     ; Thread that sends messages over TCP
     (define client-thread (thread client-loop))))
@@ -133,7 +140,7 @@
 (define (start-server port
                       #:log      (log-level 'warning)
                       #:setup    (setup #f)
-                      #:infrabel (new infrabel%))
+                      #:infrabel (infrabel (new infrabel%)))
   (define listener (tcp-listen port))
   (define client-threads '())
 
