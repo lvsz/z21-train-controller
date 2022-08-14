@@ -178,9 +178,8 @@
                          2)))
             (set-switch-position s-id s-pos)))
         ; Skip when switch is already in the correct position
-        (unless (eq? position
-                     (send switch get-position)
-                     (ext:get-switch-position id))
+        (unless (and (eq? position (send switch get-position))
+                     (eq? position (ext:get-switch-position id)))
           (send-update 'switch id position)
           (send switch set-position position)
           (ext:set-switch-position! id position))))
