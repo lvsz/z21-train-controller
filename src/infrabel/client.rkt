@@ -58,13 +58,12 @@
     ; Give each port in `port/host` `tries` tries before giving up
     (for* ((i (in-range 1 (add1 tries)))
            ((port host) (in-hash port/host)))
-      (displayln (list i port host))
       (log/i (format "TCP connection to ~a@~a, attempt ~a" port host i))
       (_connect port host return)
-      (sleep 1)))
+      (sleep 1))
     (log/w "Failed to establish TCP connection")
     (eprintf "tcp-connect failed~%")
-    (exit))
+    (exit)))
 
 
 ;; For interchangeability purposes, this has the exact same interface
