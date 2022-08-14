@@ -179,10 +179,6 @@
             (semaphore-post loco-semaphore)
             new-db-id))))
 
-    (define/public (get-d-block-ids)
-      (ext:get-d-block-ids))
-    (define/public (get-switch-ids)
-      (ext:get-switch-ids))
     (define/public (get-switch-position id)
       (ext:get-switch-position id))
 
@@ -206,10 +202,6 @@
           (send-update 'switch id position)
           (send switch set-position position)
           (ext:set-switch-position! id position))))
-
-    (define/public (get-d-block-statuses)
-      (for/list ((d-block (in-list (send railway get-d-blocks))))
-        (cons (send d-block get-id) (send d-block get-status))))
 
     (define update-channel (make-async-channel))
     (define (send-update tag . args)

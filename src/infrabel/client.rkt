@@ -169,13 +169,6 @@
       (get 'get-switch-position id))
     (define/public (set-switch-position id position)
       (put 'set-switch-position id position))
-    (define/public (get-switch-ids)
-      (get 'get-switch-ids))
-
-    (define/public (get-d-block-ids)
-      (get 'get-d-block-ids))
-    (define/public (get-d-block-statuses)
-      (get 'get-d-block-statuses))
 
     (log/i "Connecting to server")
     (put 'connect)))

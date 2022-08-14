@@ -86,12 +86,6 @@
            (reply (send/apply infrabel get-switch-position args)))
           ((set-switch-position)
            (send/apply infrabel set-switch-position args))
-          ((get-switch-ids)
-           (reply (send infrabel get-switch-ids)))
-          ((get-d-block-ids)
-           (reply (send infrabel get-d-block-ids)))
-          ((get-d-block-statuses)
-           (reply (send infrabel get-d-block-statuses)))
           ((get-setup)
            (reply (send infrabel get-setup)))
           ((initialize)
@@ -137,11 +131,11 @@
 
 ;; Initialize everything and start the server
 (define (start-server port
-                      #:log   (log-level 'warning)
-                      #:setup (setup #f))
+                      #:log      (log-level 'warning)
+                      #:setup    (setup #f)
+                      #:infrabel (new infrabel%))
   (define listener (tcp-listen port))
   (define client-threads '())
-  (define infrabel (new infrabel%))
 
   (define master-thread (current-thread))
   (define updater-thread (current-thread))
