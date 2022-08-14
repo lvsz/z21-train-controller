@@ -100,7 +100,7 @@
           ; Set switches in correct position
           (send switch
                 set-position
-                (ext:get-switch-position (send switch get-id))))
+                (ext:get-switch-position (get-id switch))))
         (set! loop-thread (thread infrabel-loop))
         (semaphore-post loco-semaphore)))
 
@@ -108,6 +108,19 @@
       (set! loop-thread #f)
       (ext:stop))
 
+    ; Occupy d-block, and send update
+    (define (occupy d-block)
+      (log/d "d-block status update:" d-block 'occupy)
+      (send d-block occupy)
+      (send-update 'd-block (get-id d-block) 'occupy))
+
+    ; Clear d-block, and send update
+    (define (clear d-block)
+      (log/d "d-block status update:" d-block 'clear)
+      (send d-block clear)
+      (send-update 'd-block (get-id d-block) 'clear))
+
+    ; Add a loco and occupy d-block
     (define/public (add-loco id prev curr)
       ; Blocks until get-loco-d-block returns
       (semaphore-wait loco-semaphore)
@@ -115,7 +128,7 @@
            (curr-track (get-track curr)))
         (ext:add-loco id prev curr)
         (send railway add-loco id prev-track curr-track)
-        (send curr-track occupy))
+        (occupy curr-track))
       (semaphore-post loco-semaphore))
 
     ; Remove loco and clear d-block if possible
@@ -124,7 +137,7 @@
       (semaphore-wait loco-semaphore)
       (let ((d-block (send (send railway get-loco id) get-d-block)))
         (when d-block
-          (send d-block clear)))
+          (clear d-block)))
       (ext:remove-loco id)
       (send railway remove-loco id)
       (semaphore-post loco-semaphore))
@@ -138,14 +151,6 @@
     ; This procedure keeps track of a loco's movement
     ; It compares the detection blocks it has traversed
     (define/public (get-loco-d-block loco-id)
-      (define (occupy d-block)
-        (log/d "D-block status update:" d-block 'occupy)
-        (send d-block occupy)
-        (send-update 'd-block (get-id d-block) 'occupy))
-      (define (clear d-block)
-        (log/d "D-block status update:" d-block 'clear)
-        (send d-block clear)
-        (send-update 'd-block (get-id d-block) 'clear))
       ; Blocks if a loco is getting added or removed
       (semaphore-wait loco-semaphore)
       (let ((loco (send railway get-loco loco-id)))
@@ -172,7 +177,7 @@
                (clear old-db)
                (send loco left-d-block)))
             (semaphore-post loco-semaphore)
-            new-db-id))
+            new-db-id))))
 
     (define/public (get-d-block-ids)
       (ext:get-d-block-ids))
@@ -181,8 +186,9 @@
     (define/public (get-switch-position id)
       (ext:get-switch-position id))
 
+    ; Changes position of switch as well as any superior switches if needed
     (define/public (set-switch-position id position)
-      (let* ((switch (send railway get-switch id))
+      (let* ((switch (get-track id))
              (sup-switch (get-field superior switch))
              (track (if (= position 1)
                       (get-field track-1 switch)
