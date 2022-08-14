@@ -62,8 +62,9 @@
     (define/public (get-switches)
       (hash-values switches))
 
+    ; Returns #f when not found (likely got removed)
     (define/public (get-loco id)
-      (hash-ref locos id))
+      (hash-ref locos id #f))
     (define/public (get-locos)
       (hash-values locos))
 
