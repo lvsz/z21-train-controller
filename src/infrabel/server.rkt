@@ -25,91 +25,114 @@
     msg))
 
 ;; Reply and log message
-(define (output-to id response output)
-  (let ((msg (message id 'response response)))
+(define (output-to output id header body)
+  (let ((msg (message id header body)))
     (log/d (format "sent \"~a\"" msg))
     (write msg output)))
 
 
-(define (new-client-thread infrabel tcp-in tcp-out)
-  (define (put id response)
-    (output-to id response tcp-out))
+;; A client% object has three public methods:
+;; `(send a-client update msg)` forwards the msg to a-client
+;; `(send a-client running?)` returns a boolean indicating whether it's active
+;; `(send a-client kill)` kills the connection and client thread
+(define client%
+  (class object%
+    (init-field infrabel tcp-in tcp-out)
+    (super-new)
 
-  (define (get)
-    (input-from tcp-in))
+    (define-syntax put
+      (syntax-rules ()
+        ((_ tag id body) (output-to tcp-out id tag body))))
 
-  ; Keep track of locos in case of disconnect
-  (define locos (mutable-set))
+    ; Keep track of locos in case of disconnect
+    (define locos (mutable-set))
 
-  (define (stop msg)
-    (for ((loco (in-set locos)))
-      (send infrabel remove-loco loco))
-    (tcp-abandon-port tcp-in)
-    (tcp-abandon-port tcp-out)
-    (log/i "Connection with client ended:" msg)
-    (kill-thread (current-thread)))
+    (define (stop msg)
+      (case msg
+        ((disconnect request)
+         (for ((loco (in-set locos)))
+           (send infrabel remove-loco loco)))
+        ((kill)
+         (put 'kill 'kill 'kill)))
+      (tcp-abandon-port tcp-in)
+      (tcp-abandon-port tcp-out)
+      (log/i "Connection with client ended:" msg)
+      (kill-thread client-thread))
 
-  (define (tcp-handler msg)
-    (when (eof-object? msg)
-      (stop 'disconnect))
-    (let ((id     (message-id msg))
-          (method (message-header msg))
-          (args   (message-body msg)))
-      (case method
-        ((add-loco)
-         (set-add! locos (car args))
-         (send/apply infrabel add-loco args))
-        ((remove-loco)
-         (set-remove! locos (car args))
-         (send/apply infrabel remove-loco args))
-        ((get-loco-speed)
-         (put id (send/apply infrabel get-loco-speed args)))
-        ((set-loco-speed)
-         (send/apply infrabel set-loco-speed args))
-        ((change-loco-direction)
-         (send/apply infrabel change-loco-direction args))
-        ((get-loco-d-block)
-         (put id (send/apply infrabel get-loco-d-block args)))
-        ((get-switch-position)
-         (put id (send/apply infrabel get-switch-position args)))
-        ((set-switch-position)
-         (send/apply infrabel set-switch-position args))
-        ((get-switch-ids)
-         (put id (send infrabel get-switch-ids)))
-        ((get-d-block-ids)
-         (put id (send infrabel get-d-block-ids)))
-        ((get-d-block-statuses)
-         (put id (send infrabel get-d-block-statuses)))
-        ((get-setup)
-         (put id (send infrabel get-setup)))
-        ((initialize)
-         (send/apply infrabel initialize args))
-        ((start)
-         (send infrabel start))
-        ((stop)
-         (stop 'request))
-        (else (log/i "Unrecongized message: ~a" msg)))))
+    (define (tcp-handler msg)
+      (define-syntax reply
+        (syntax-rules ()
+          ((_ m) (put 'response (message-id msg) m))))
+      (when (eof-object? msg)
+        (stop 'disconnect))
+      (let ((method (message-header msg))
+            (args   (message-body msg)))
+        (case method
+          ((add-loco)
+           (set-add! locos (car args))
+           (send/apply infrabel add-loco args))
+          ((remove-loco)
+           (set-remove! locos (car args))
+           (send/apply infrabel remove-loco args))
+          ((get-loco-speed)
+           (reply (send/apply infrabel get-loco-speed args)))
+          ((set-loco-speed)
+           (send/apply infrabel set-loco-speed args))
+          ((change-loco-direction)
+           (send/apply infrabel change-loco-direction args))
+          ((get-loco-d-block)
+           (reply (send/apply infrabel get-loco-d-block args)))
+          ((get-switch-position)
+           (reply (send/apply infrabel get-switch-position args)))
+          ((set-switch-position)
+           (send/apply infrabel set-switch-position args))
+          ((get-switch-ids)
+           (reply (send infrabel get-switch-ids)))
+          ((get-d-block-ids)
+           (reply (send infrabel get-d-block-ids)))
+          ((get-d-block-statuses)
+           (reply (send infrabel get-d-block-statuses)))
+          ((get-setup)
+           (reply (send infrabel get-setup)))
+          ((initialize)
+           (send/apply infrabel initialize args))
+          ((start)
+           (send infrabel start))
+          ((stop)
+           (stop 'request))
+          (else (log/i "Unrecongized message: ~a" msg)))))
 
-  (define (update-handler datum)
-    (cond ((not (pair? datum))
-           (log/w "Invalid update received:" datum))
-          ((not (eq? (car datum) 'loco-speed))
-           (log/d "Sending update to client:" datum)
-           (put (car datum) (cdr datum)))
-          ((and (pair? (cdr datum))
-                (set-member? (cadr datum) locos))
-           (log/d "Sending loco-speed update to client:" datum)
-           (put (car datum) (cdr datum)))
-          (else (log/w "Invalid update received:" datum))))
+    (define (update-handler datum)
+      (cond ((not (pair? datum))
+             (log/w "Invalid update received:" datum))
+            ((not (eq? (car datum) 'loco-speed))
+             (log/d "Sending update to client:" datum)
+             (put 'update (car datum) (cdr datum)))
+            ((and (pair? (cdr datum))
+                  (set-member? (cadr datum) locos))
+             (log/d "Sending loco-speed update to client:" datum)
+             (put 'update (car datum) (cdr datum)))
+            (else (log/w "Invalid update received:" datum))))
 
-  (define (client-loop)
-    ; If a TCP port synchronizes, it returns the port
-    ; If it's not a port, it's an update
-    (if (input-port? (sync (choice-evt tcp-in (thread-receive-evt))))
-      (tcp-handler (get))
-      (update-handler (thread-receive)))
-    (client-loop))
-  (thread client-loop))
+    (define (client-loop)
+      ; If a TCP port synchronizes, it returns the port
+      ; If it's not a port, it's an update
+      (if (input-port? (sync (choice-evt tcp-in (thread-receive-evt))))
+        (tcp-handler (input-from tcp-in))
+        (update-handler (thread-receive)))
+      (client-loop))
+
+    (define/public (update msg)
+      (thread-send client-thread msg))
+
+    (define/public (running?)
+      (thread-running? client-thread))
+
+    (define/public (kill)
+      (stop 'kill))
+
+    ; Thread that sends messages over TCP
+    (define client-thread (thread client-loop))))
 
 
 ;; Initialize everything and start the server
@@ -123,45 +146,61 @@
   (define master-thread (current-thread))
   (define updater-thread (current-thread))
 
-  (define (update-loop)
-    ; Accepting clients and updating them both utilise the client-threads list
-    ; To prevent race conditions, these get handled in the same thread
-    (match (sync (choice-evt (tcp-accept-evt listener)
-                             (send infrabel get-update)))
-      ; If tcp-accept-evt synchronized, it returns two TCP ports
-      ((list (? tcp-port? tcp-in) tcp-out)
-       (let ((msg (input-from tcp-in)))
-         (file-stream-buffer-mode tcp-out 'none)
-         (if (and (message? msg)
-                  (eq? (message-header msg) 'connect))
-           (begin (set! client-threads (cons (new-client-thread
-                                               infrabel
-                                               tcp-in
-                                               tcp-out)
-                                             client-threads))
-                  (log/i "Connection established on port" port))
-           (log/d "Expected \"connect\" message but received:" msg))))
-      ; Else it's an infrabel update for the threads to handle
-      ; Also remove any threads that are no longer running
-      (update
-       (log/d "Sending update to client threads:" update)
-       (set! client-threads (for/list ((ct (in-list client-threads))
-                                       #:when (thread-running? ct))
-                              (thread-send ct update)
-                              ct))))
-    (update-loop))
+  (define (updater)
+    (define (update-loop clients)
+      ; Accepting clients and updating them with given list of client threads
+      ; To prevent race conditions, these get handled in the same thread
+      (match (sync (choice-evt (tcp-accept-evt listener)
+                               (thread-receive-evt)
+                               (send infrabel get-update)))
+        ; If tcp-accept-evt synchronized, it returns two TCP ports
+        ((list (? tcp-port? tcp-in) tcp-out)
+         (let ((msg (input-from tcp-in)))
+           (cond ((and (message? msg) (eq? (message-header msg) 'connect))
+                  (log/i "Connection established on port" port)
+                  ; Set buffer to 'none to flush output after each write
+                  (file-stream-buffer-mode tcp-out 'none)
+                  (update-loop
+                    (cons (make-object client% infrabel tcp-in tcp-out)
+                          clients)))
+                 (else (log/w "Expected 'connect message but received:" msg)
+                       (update-loop clients)))))
+        ; If thread-receive-evt synchronized, it returns an event
+        ((? evt?)
+         (let ((msg (thread-receive)))
+           (case msg
+             ((kill) (log/d "Killing client threads")
+                     (for-each (lambda (c) (send c kill)) clients)
+                     (log/d "Killing updater thread")
+                     (kill-thread (current-thread)))
+             (else   (log/w "Unexpected thread message in update-loop:" msg)
+                     (update-loop clients)))))
+        ; Else it's an infrabel update for the threads to handle
+        ; Also remove any threads that are no longer running
+        (update-msg
+         (log/d "Sending update to client threads:" update-msg)
+         (update-loop (for/list ((client (in-list clients))
+                                  #:when (send client running?))
+                         (send client update update-msg)
+                         client)))))
+    ; Waits for first connection before entering loop
+    (let-values (((tcp-in tcp-out) (tcp-accept listener)))
+      (log/i "Connection established, server activated")
+      (file-stream-buffer-mode tcp-out 'none)
+      (update-loop (list (make-object client% infrabel tcp-in tcp-out)))))
 
   (define (stop exn)
     (log/i "Server shutting down.")
     ; Kill run loop and client threads
-    (for-each kill-thread (cons updater-thread client-threads))
+    (when (thread-running? updater-thread)
+      (thread-send updater-thread 'kill))
     (send infrabel stop)
     (cond ((eq? exn 'request)
            (log/i "Infrabel server stopped by request"))
           ((exn:break? exn)
            (log/i "Infrabel server stopped by user break"))
           (else
-           (log/i "Infrabel server stopped by unkown cause:" exn)))
+           (log/w "Infrabel server stopped by unkown cause:" exn)))
     (tcp-close listener)
     (kill-thread master-thread))
 
@@ -183,19 +222,16 @@
     (when setup
       (send infrabel initialize setup))
 
-    (displayln (format "Server accepting TCP connections on port ~a." port))
+    (display (format "Server accepting TCP connections on port ~a.~%" port))
     (thread repl)
-    (let-values (((in out) (tcp-accept listener)))
-      (file-stream-buffer-mode out 'none)
-      (set! client-threads (list (new-client-thread infrabel in out))))
-
-    (log/i "Infrabel server activated")
-    (log/i "Log level" log-level)
+    (set! updater-thread (thread updater))
 
     ; Blocks until infrabel is initialized
-    (sync (send infrabel get-update))
+    (let ((update (sync (send infrabel get-update))))
+      (case update
+        (((initialized)) (log/i "Infrabel initialized"))
+        (else (log/w "Expected '(initialized), but received:" update))))
 
-    (begin0 (send infrabel start)
-            (log/i "Infrabel started")
-            (set! updater-thread (thread update-loop)))))
+    (log/i "Starting infrabel")
+    (send infrabel start)))
 
