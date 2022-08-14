@@ -82,39 +82,52 @@
     (define/public (get-setup)
       setup)
 
-    (define running #f)
+    ; Locos as stored in a mutable data structure used by multiple threads
+    ; So use a semaphore to regulate access to adding/removing functionality
+    (define loco-semaphore (make-semaphore))
+
+    (define loop-thread #f)
 
     (define/public (start)
       (define (infrabel-loop)
         (for ((loco (in-list (send railway get-locos))))
           (get-loco-d-block (get-id loco)))
         (sleep 0.5)
-        (when running
+        (when loop-thread
           (infrabel-loop)))
-      (unless running
+      (unless loop-thread
         (for ((switch (in-list (send railway get-switches))))
+          ; Set switches in correct position
           (send switch
                 set-position
                 (ext:get-switch-position (send switch get-id))))
-        (set! running #t)
-        (void (thread infrabel-loop))))
+        (set! loop-thread (thread infrabel-loop))
+        (semaphore-post loco-semaphore)))
 
     (define/public (stop)
-      (set! running #f)
+      (set! loop-thread #f)
       (ext:stop))
 
     (define/public (add-loco id prev curr)
-      (define prev-track (get-track prev))
-      (define curr-track (get-track curr))
-      (ext:add-loco id prev curr)
-      (send railway add-loco id prev-track curr-track)
-      (send curr-track occupy))
+      ; Blocks until get-loco-d-block returns
+      (semaphore-wait loco-semaphore)
+      (let((prev-track (get-track prev))
+           (curr-track (get-track curr)))
+        (ext:add-loco id prev curr)
+        (send railway add-loco id prev-track curr-track)
+        (send curr-track occupy))
+      (semaphore-post loco-semaphore))
 
+    ; Remove loco and clear d-block if possible
     (define/public (remove-loco id)
+      ; Blocks until get-loco-d-block returns
+      (semaphore-wait loco-semaphore)
       (let ((d-block (send (send railway get-loco id) get-d-block)))
-        (when d-block (send d-block clear)))
+        (when d-block
+          (send d-block clear)))
       (ext:remove-loco id)
-      (send railway remove-loco id))
+      (send railway remove-loco id)
+      (semaphore-post loco-semaphore))
 
     (define/public (get-loco-speed id)
       (ext:get-loco-speed id))
@@ -133,29 +146,33 @@
         (log/d "D-block status update:" d-block 'clear)
         (send d-block clear)
         (send-update 'd-block (get-id d-block) 'clear))
-      (let* ((loco      (send railway get-loco loco-id))
-             (old-db    (send loco get-d-block))
-             (new-db-id (ext:get-loco-d-block loco-id))
-             (new-db    (and new-db-id (get-track new-db-id))))
-        (cond
-          ; Nothing changed
-          ((eq? new-db old-db)
-           (log/d "No d-block update for" loco 'on old-db))
-          ; Loco is on a new detection block
-          (new-db
-           (log/i "Loco" loco "entered" new-db)
-           (occupy new-db)
-           (send loco update-location new-db)
-           ; Clear previous d-block if there was one
-           (when old-db
-             (log/i 'Loco loco 'left old-db)
-             (clear old-db)))
-          ; Else loco left a detection block
-          (else
-           (log/i 'Loco loco 'left old-db)
-           (clear old-db)
-           (send loco left-d-block)))
-        new-db-id))
+      ; Blocks if a loco is getting added or removed
+      (semaphore-wait loco-semaphore)
+      (let ((loco (send railway get-loco loco-id)))
+        (when loco ; Make sure loco wasn't delete between method call and now
+          (let* ((old-db    (send loco get-d-block))
+                 (new-db-id (ext:get-loco-d-block loco-id))
+                 (new-db    (and new-db-id (get-track new-db-id))))
+            (cond
+              ; Nothing changed
+              ((eq? new-db old-db)
+               (log/d "No d-block update for" loco 'on old-db))
+              ; Loco is on a new detection block
+              (new-db
+               (log/i "Loco" loco "entered" new-db)
+               (occupy new-db)
+               (send loco update-location new-db)
+               ; Clear previous d-block if there was one
+               (when old-db
+                 (log/i 'Loco loco 'left old-db)
+                 (clear old-db)))
+              ; Else loco left a detection block
+              (else
+               (log/i 'Loco loco 'left old-db)
+               (clear old-db)
+               (send loco left-d-block)))
+            (semaphore-post loco-semaphore)
+            new-db-id))
 
     (define/public (get-d-block-ids)
       (ext:get-d-block-ids))
