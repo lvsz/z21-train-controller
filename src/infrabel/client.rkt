@@ -33,34 +33,38 @@
 
 
 ;; Quickly try going through the different configs available
-(define (quick-connect (files tcp-files))
+(define (quick-connect #:files (files tcp-files)
+                       #:port  (port #f)
+                       #:host  (host "localhost"))
   (let/cc
     return
-    (if (null? files)
-      (begin (log/w "Failed to establish TCP connection")
-             (eprintf "tcp-connect failed~%")
-             (exit))
-      (let-values (((port host) (tcp-info (car files))))
-        (with-handlers
-          ((exn:fail:network? ; Call the following if connection failed
-             (lambda (exn)
-               (log/i (format "TCP connection to ~a@~a failed" port host))
-               (quick-connect (cdr files)))))
-          (log/i (format "Attempting TCP connection to ~a@~a" port host))
-          ; Connection succesful, update i/o ports
-          (let-values (((in out) (tcp-connect host port)))
-            (file-stream-buffer-mode out 'none)
-            (return in out)))))))
+    (cond ((and (null? files) (not port))
+           (log/w "Failed to establish TCP connection")
+           (eprintf "tcp-connect failed~%")
+           (exit))
+          ((not port)
+           (set!-values (port host) (tcp-info (car files)))))
+    (with-handlers
+      ((exn:fail:network? ; Call the following if connection failed
+         (lambda (exn)
+           (log/i (format "TCP connection to ~a@~a failed" port host))
+           (quick-connect #:files (cdr files)))))
+      (log/i (format "Attempting TCP connection to ~a@~a" port host))
+      ; Connection succesful, update i/o ports
+      (let-values (((in out) (tcp-connect host port)))
+        (file-stream-buffer-mode out 'none)
+        (return in out)))))
 
 
 ;; For interchangeability purposes, this has the exact same interface
 ;; as the infrabel% class in infrabel.rkt
 (define infrabel-client%
   (class* object% (infrabel-interface<%>)
+    (init-field (port #f) (host "localhost"))
     (super-new)
 
     (define-values (tcp-in tcp-out)
-      (quick-connect))
+      (quick-connect #:port port #:host host))
 
     (define update-channel (make-async-channel))
     (define (send-update update)

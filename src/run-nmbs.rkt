@@ -19,8 +19,9 @@
 
 ;; Text to display for command line usage
 (define help-string
-  "usage: run-nmbs [-p | --port NUM]
-                [-s | --setup NAME|list]
+  "usage: run-nmbs [-s | --setup NAME|list]
+                [-p | --port NUM]
+                [-h | --host HOSTNAME]
                 [-l | --log info|debug]
                 [--solo]\n")
 
@@ -36,8 +37,10 @@
 ;;     the server can be either localhost or raspberypi
 ;;   if #:setup = #f : gives the user a selection screen to pick a setup
 ;;   otherwise it will skip that step (assuming the given setup exists)
-(define (run-nmbs #:solo? (solo #f)
-                  #:setup (setup #f)
+(define (run-nmbs #:setup (setup #f)
+                  #:port  (port #f)
+                  #:host  (host "localhost")
+                  #:solo? (solo #f)
                   #:log   (log-level 'warning))
   (let ((args (current-command-line-arguments)))
     (let loop ((i 0))
@@ -53,6 +56,23 @@
                     (set! setup (string->symbol arg)))
                    (else (eprintf "Invalid setup: ~a~%" arg)
                          (display-setups (current-error-port))))))
+          ((--port -p)
+           (set! i (add1 i))
+           (let ((p (string->number (vector-ref args i))))
+             (if (and (integer? p)
+                      (<= 0 p 65535))
+               (set! port p)
+               (eprintf "Port must be integer between 0 and 65535~%"))))
+          ((--host -h)
+           (set! i (add1 i))
+           (when (= i (vector-length args))
+             (display help)
+             (exit))
+           (let ((h (string->symbol (vector-ref args i))))
+             (case h
+               ((localhost local raspberrypi rpi)
+                (set! host h))
+               (else (eprintf "Invalid host, try 'local' or 'rpi'~%")))))
           ((--log -l)
            (set! i (add1 i))
            (let ((level (string->symbol (vector-ref args i))))
@@ -62,7 +82,7 @@
                (else (eprintf "Log level must be 'info' or 'debug'~%")))))
           ((--solo)
            (set! solo #t))
-          ((--help -h help)
+          ((--help help)
            (help (current-output-port)))
           (else (eprintf "Invalid argument: ~a~%" (vector-ref args i))
                 (help (current-error-port))))
@@ -71,7 +91,7 @@
   (define infrabel
     (if solo
       (new infrabel%)
-      (new infrabel-client%)))
+      (new infrabel-client% (port port) (host host))))
 
   (define nmbs
     (new nmbs% (infrabel infrabel) (log-level log-level)))
