@@ -9,6 +9,9 @@
 ;; 'raspberry pi' confiuguration file
 (define rpi-config   "resources/tcp/raspberrypi.txt")
 
+;; Config that gets used when no other is specified
+(define default-config local-config)
+
 ;; List of setup names
 (define setups (map path->string (directory-list "resources/setups/")))
 
@@ -26,6 +29,7 @@
 ;; Text to display for command line usage
 (define help-string
   "usage: run-nmbs [-p | --port NUM]
+                [-h | --host local|rpi]
                 [-s | --setup NAME|list]
                 [-l | --log info|debug]\n")
 
@@ -36,7 +40,7 @@
 
 
 ;; Run server, configuring it with given arguments
-(define (run-server #:host  (host "localhost")
+(define (run-server #:host  (host #f)
                     #:port  (port #f)
                     #:log   (log-level 'warning)
                     #:setup (setup #f))
@@ -56,16 +60,10 @@
            (when (= i (vector-length args))
              (display help)
              (exit))
-           (let ((h (vector-ref args i)))
+           (let ((h (string->symbol (vector-ref args i))))
              (case h
-               (("local" "localhost")
-                (set! host h)
-                (unless port
-                  (set! port (get-port local-config))))
-               (("rpi" "raspberrypi")
-                (set! host h)
-                (unless port
-                  (set! port (get-port rpi-config))))
+               ((localhost local raspberrypi rpi)
+                (set! host h))
                (else (eprintf "Invalid host, try 'local' or 'rpi'~%")))))
           ((--log -l)
            (set! i (add1 i))
@@ -92,7 +90,10 @@
 
     ; Get default port if none was set by host or port flag
     (unless port
-      (set! port (get-port local-config)))
+      (set! port (get-port (case host
+                             ((localhost local) local-config)
+                             ((raspberrypi rpi) rpi-config)
+                             (else              default-config)))))
 
     (void (start-server port #:log log-level #:setup setup))))
 
