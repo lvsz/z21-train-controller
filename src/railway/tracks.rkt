@@ -115,41 +115,52 @@
           ((_length length)))
     (super-make-object _id _node-1 _node-2 _length)
     (inherit-field id superior)
-    (field (status 'green))
     (inherit get-connected-tracks)
-
-    (define connected-blocks
-      (for/list ((track (in-list (get-connected-tracks)))
-                 #:when (d-block? track))
-        (send track connect-block this)
-        track))
-
-    (define/public (connect-block d-block)
-      (set! connected-blocks (cons d-block connected-blocks)))
+    (field (status 'green)
+           (connected-blocks
+             (for/list ((track (in-list (get-connected-tracks)))
+                        #:when (d-block? track))
+               (set-field!
+                 connected-blocks
+                 track
+                 (cons this (get-field connected-blocks track)))
+               track)))
 
     (define/public (get-status)
       status)
 
+    ; Sets status to 'red
+    ; Then sets status of connected 'green d-blocks to 'orange
+    ; Returns an assoc list containing ids and updated statuses
     (define/public (occupy)
       (set! status 'red)
-      (for ((d-block (in-list connected-blocks))
-            #:when (eq? (get-field status d-block) 'green))
-        (set-field! status d-block 'orange)))
+      (cons (cons id 'red)
+            (for/list ((db (in-list connected-blocks))
+                       #:when (eq? (get-field status db) 'green))
+              (set-field! status db 'orange)
+              (cons (get-field id db) 'orange))))
 
+    ; Sets status to 'green if connected blocks are clear
+    ; Sets status to 'orange if a connected block is occupied
+    ; Tries clearing connected blocks
+    ; Returns an assoc list containing ids and updated statuses
     (define/public (clear)
-      (if (for/or ((d-block (in-list connected-blocks)))
-            (eq? (get-field status d-block) 'red))
-        (set! status 'orange)
+      (if (for/or ((db (in-list connected-blocks)))
+            (eq? (get-field status db) 'red))
+        (begin (set! status 'orange)
+               (list (cons id 'orange)))
         (begin (set! status 'green)
-               (for ((d-block (in-list connected-blocks))
-                     #:unless (eq? (get-field status d-block) 'green))
-                 (send d-block clear)))))
+               (cons (cons id 'green)
+                     (for/list ((db (in-list connected-blocks))
+                                #:unless (eq? (get-field status db) 'green))
+                       (send db clear)
+                       (cons (get-field id db) (get-field status db)))))))
 
-    ;; Custom printing functions to make debugging easier
+    ; Custom printing methods to make debugging easier
     (define/override (custom-write port)
-      (fprintf port "(object:d-block:~a ...)" id))
+      (fprintf port "(object:d-block:~a:~a ...)" id status))
     (define/override (custom-display port)
-      (fprintf port "d-block:~a" id))))
+      (fprintf port "d-block:~a:~a" id status))))
 
 
 ;; A switch is a compound track, it has 2 positions it can switch between,
