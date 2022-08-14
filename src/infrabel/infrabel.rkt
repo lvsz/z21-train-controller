@@ -16,7 +16,10 @@
 
 (define infrabel%
   (class* object% (infrabel-interface<%>)
+    (init-field (log-level 'warning))
     (super-new)
+
+    (start-logger log-level)
 
     (define railway #f)
 

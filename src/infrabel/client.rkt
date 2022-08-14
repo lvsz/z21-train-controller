@@ -33,35 +33,48 @@
 
 
 ;; Quickly try going through the different configs available
+;; Exits if it runs out of tries
 (define (quick-connect #:files (files tcp-files)
                        #:port  (port #f)
-                       #:host  (host "localhost"))
-  (let/cc
-    return
-    (cond ((and (null? files) (not port))
-           (log/w "Failed to establish TCP connection")
-           (eprintf "tcp-connect failed~%")
-           (exit))
-          ((not port)
-           (set!-values (port host) (tcp-info (car files)))))
+                       #:host  (host "localhost")
+                       #:tries (tries 5))
+  (define (_connect port host cont)
     (with-handlers
       ((exn:fail:network? ; Call the following if connection failed
          (lambda (exn)
-           (log/i (format "TCP connection to ~a@~a failed" port host))
-           (quick-connect #:files (cdr files)))))
-      (log/i (format "Attempting TCP connection to ~a@~a" port host))
-      ; Connection succesful, update i/o ports
+           (log/i (format "TCP connection to ~a@~a failed" port host)))))
       (let-values (((in out) (tcp-connect host port)))
+        ; Connection succesful, return i/o ports
+        (log/i (format "TCP connection established at ~a@~a" port host))
         (file-stream-buffer-mode out 'none)
-        (return in out)))))
+        (cont in out))))
+  (define port/host
+    (if port
+      (hash port host)
+      (for/hash ((file (in-list files)))
+        (tcp-info file))))
+  (let/cc
+    return
+    ; Give each port in `port/host` `tries` tries before giving up
+    (for* ((i (in-range 1 (add1 tries)))
+           ((port host) (in-hash port/host)))
+      (displayln (list i port host))
+      (log/i (format "TCP connection to ~a@~a, attempt ~a" port host i))
+      (_connect port host return)
+      (sleep 1)))
+    (log/w "Failed to establish TCP connection")
+    (eprintf "tcp-connect failed~%")
+    (exit))
 
 
 ;; For interchangeability purposes, this has the exact same interface
 ;; as the infrabel% class in infrabel.rkt
 (define infrabel-client%
   (class* object% (infrabel-interface<%>)
-    (init-field (port #f) (host "localhost"))
+    (init-field (port #f) (host "localhost") (log-level 'warning))
     (super-new)
+
+    (start-logger log-level)
 
     (define-values (tcp-in tcp-out)
       (quick-connect #:port port #:host host))

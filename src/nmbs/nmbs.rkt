@@ -20,11 +20,8 @@
 ;; Controlling locos is made possible through a GUI
 (define nmbs%
   (class object%
-    (init-field infrabel (log-level 'warning))
+    (init-field infrabel)
     (super-new)
-
-    (when log-level
-      (start-logger log-level))
 
     (define railway #f)
 

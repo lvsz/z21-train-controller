@@ -1,6 +1,8 @@
 #lang racket/base
 
-(require "infrabel/server.rkt"
+(require racket/class
+         "infrabel/infrabel.rkt"
+         "infrabel/server.rkt"
          "logger.rkt")
 
 ;; 'localhost' confiuguration file
@@ -94,8 +96,8 @@
                              ((localhost local) local-config)
                              ((raspberrypi rpi) rpi-config)
                              (else              default-config)))))
-
-    (void (start-server port #:log log-level #:setup setup))))
+    (let ((infrabel (new infrabel% (log-level log-level))))
+      (void (start-server port #:infrabel infrabel #:setup setup)))))
 
 ;; Doesn't run when imported as a module elsewhere
 (module* main #f

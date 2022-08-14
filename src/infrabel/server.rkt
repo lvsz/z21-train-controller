@@ -95,6 +95,7 @@
           ((initialize)
            (send/apply infrabel initialize args))
           ((start)
+           (log/i "Starting infrabel")
            (send infrabel start))
           ((stop)
            (stop 'request))
@@ -138,9 +139,12 @@
 
 ;; Initialize everything and start the server
 (define (start-server port
-                      #:log      (log-level 'warning)
-                      #:setup    (setup #f)
-                      #:infrabel (infrabel (new infrabel%)))
+                      #:infrabel  (infrabel #f)
+                      #:setup     (setup #f)
+                      #:log-level (log-level 'warning))
+  (unless infrabel
+    (set! infrabel (new infrabel% (log-level log-level))))
+
   (define listener (tcp-listen port))
   (define client-threads '())
 
@@ -217,9 +221,6 @@
   (with-handlers
     ((exn? stop))
 
-    (when log-level
-      (start-logger log-level))
-
     (when setup
       (send infrabel initialize setup))
 
@@ -231,8 +232,5 @@
     (let ((update (sync (send infrabel get-update))))
       (case update
         (((initialized)) (log/i "Infrabel initialized"))
-        (else (log/w "Expected '(initialized), but received:" update))))
-
-    (log/i "Starting infrabel")
-    (send infrabel start)))
+        (else (log/w "Expected '(initialized), but received:" update))))))
 

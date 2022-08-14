@@ -90,11 +90,11 @@
 
   (define infrabel
     (if solo
-      (new infrabel%)
-      (new infrabel-client% (port port) (host host))))
+      (new infrabel% (log-level log-level))
+      (new infrabel-client% (port port) (host host) (log-level log-level))))
 
   (define nmbs
-    (new nmbs% (infrabel infrabel) (log-level log-level)))
+    (new nmbs% (infrabel infrabel)))
 
   (send nmbs start #:setup-id setup))
 
