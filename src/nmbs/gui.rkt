@@ -184,14 +184,17 @@
       (active-loco-update!))
 
     (define (remove-loco-from-menu!)
-      (when active-loco
-        (set! locos (remq active-loco locos))
-        (send loco-select-menu delete (send loco-select-menu get-selection))
-        (if (empty? locos)
-          (begin (set-active-loco! #f)
-                 (send loco-select-menu append "---"))
-          (set-active-loco!
-            (list-ref locos (send loco-select-menu get-selection))))))
+      (let ((selection (send loco-select-menu get-selection)))
+        (when (and active-loco selection)
+          (send loco-select-menu delete selection)
+          (set! locos (remq active-loco locos))
+          (if (empty? locos)
+            (begin (set-active-loco! #f)
+                   (send loco-select-menu append "---"))
+            (set-active-loco!
+              (list-ref locos
+                        (or (send loco-select-menu get-selection)
+                            0)))))))
 
     (define loco-control
       (new vertical-pane%
