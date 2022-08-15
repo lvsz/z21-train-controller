@@ -186,6 +186,11 @@
     (define/public (set-switch-position id position)
       (put 'set-switch-position id position))
 
+    (define/public (get-switch-ids)
+      (get 'get-switch-ids))
+    (define/public (get-d-block-ids)
+      (get 'get-d-block-ids))
+
     (log/i "Connecting to server")
     (put 'connect)))
 

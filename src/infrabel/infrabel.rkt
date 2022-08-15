@@ -190,6 +190,10 @@
                (semaphore-post loco-semaphore)
                new-db-id))))
 
+    (define/public (get-d-block-ids)
+      (ext:get-d-block-ids))
+    (define/public (get-switch-ids)
+      (ext:get-switch-ids))
     (define/public (get-switch-position id)
       (ext:get-switch-position id))
 

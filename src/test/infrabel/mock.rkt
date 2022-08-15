@@ -63,6 +63,12 @@
     (define/public (set-switch-position id p)
       (send (send railway get-track id) set-position p))
 
+    (define/public (get-switch-ids)
+      (get-ids (send railway get-switches)))
+
+    (define/public (get-d-block-ids)
+      (get-ids (send railway get-d-blocks)))
+
     (define update-channel (make-async-channel))
     (define (send-update tag . args)
       (async-channel-put update-channel (cons tag args)))
