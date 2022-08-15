@@ -66,11 +66,7 @@
            (when (= i (vector-length args))
              (display help)
              (exit))
-           (let ((h (string->symbol (vector-ref args i))))
-             (case h
-               ((localhost local raspberrypi rpi)
-                (set! host h))
-               (else (eprintf "Invalid host, try 'local' or 'rpi'~%")))))
+           (set! host (vector-ref args i)))
           ((--log -l)
            (set! i (add1 i))
            (let ((level (string->symbol (vector-ref args i))))
