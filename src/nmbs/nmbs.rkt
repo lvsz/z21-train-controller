@@ -4,7 +4,6 @@
 
 (require racket/async-channel
          racket/class
-         racket/list
          racket/match
          "gui.rkt"
          "robo-loco.rkt"
@@ -26,6 +25,10 @@
     (define main-thread (current-thread))
 
     (define railway #f)
+
+    (define-syntax get-track
+      (syntax-rules ()
+        ((_ id) (send railway get-track id))))
 
     ; List of functions to be called when a switch changes
     (define switch-listeners '())
@@ -77,7 +80,7 @@
 
     (define/public (set-switch-track id track-id)
       (let ((switch (send railway get-switch id))
-            (track (send railway get-track track-id)))
+            (track (get-track track-id)))
         (cond ((eq? track (get-field track-1 switch))
                (set-switch-position id 1))
               ((eq? track (get-field track-2 switch))
@@ -129,8 +132,8 @@
         (send infrabel add-loco loco-id prev-id curr-id)
         (send railway add-loco
               loco-id
-              (send railway get-track prev-id)
-              (send railway get-track curr-id))
+              (get-track prev-id)
+              (get-track curr-id))
         loco-id))
 
     (define/public (remove-loco loco-id)
@@ -148,11 +151,11 @@
       (if prev-id
         (send (get-loco loco-id)
               update-location
-              (send railway get-track curr-id)
-              (send railway get-track prev-id))
+              (get-track curr-id)
+              (get-track prev-id))
         (send (get-loco loco-id)
               update-location
-              (send railway get-track curr-id))))
+              (get-track curr-id))))
 
     ; Get hash of spots where a new loco can be added
     ; Any detection block connected to either another block or a switch is valid
@@ -215,9 +218,9 @@
                (send loco change-direction)))
            (_set-loco-speed id (abs speed)))
           ((list 'd-block id 'occupy) ; Infrabel sent d-block status update
-           (notify-d-block-listeners (send (send railway get-track id) occupy)))
+           (notify-d-block-listeners (send (get-track id) occupy)))
           ((list 'd-block id 'clear) ; Infrabel sent d-block status update
-           (notify-d-block-listeners (send (send railway get-track id) clear)))
+           (notify-d-block-listeners (send (get-track id) clear)))
           ((list 'kill msg)
            (log/i "Disconnected server:" msg)
            (_stop))
@@ -247,6 +250,9 @@
           (_set-switch-position
             switch-id
             (send infrabel get-switch-position switch-id)))
+        (for ((id (in-list (get-d-block-ids)))
+              #:when (eq? 'red (send infrabel get-d-block-status id)))
+          (send (get-track id) occupy))
         (when gui
           (new window%
                (nmbs this)
