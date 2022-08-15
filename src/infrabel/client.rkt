@@ -8,13 +8,12 @@
          racket/tcp
          "interface.rkt"
          "message.rkt"
-         "../logger.rkt")
+         "../logger.rkt"
+         "../resources.rkt")
 
 
 ;; Logging functions
 (define-loggers 'infrabel/client log/w log/i log/d)
-
-(define tcp-files (directory-list "resources/tcp/" #:build? #t))
 
 
 ;; Struct that facilitates sending requests in need of a response

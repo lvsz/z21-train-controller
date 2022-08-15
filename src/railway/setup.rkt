@@ -6,9 +6,8 @@
 
 (require racket/list
          racket/sequence
-         racket/string)
-
-(define setup-location "resources/setups")
+         racket/string
+         "../resources.rkt")
 
 ;; Stores the name of the setup as a symbol and the contents as a procedure
 ;; that can be called to read the associated files.
