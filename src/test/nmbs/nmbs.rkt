@@ -3,14 +3,12 @@
 (provide run)
 
 (require racket/class
-         racket/tcp
          racket/async-channel
          rackunit
          rackunit/text-ui
          "../infrabel/mock.rkt"
          "../../nmbs/nmbs.rkt"
-         "../../railway/railway.rkt"
-         "../../railway/tracks.rkt")
+         "../../railway/railway.rkt")
 
 
 (define setup 'hardware)
