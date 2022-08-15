@@ -78,8 +78,7 @@
         (z21-mode!)
         (simulation-mode! setup-id))
       (set! railway (make-object railway% setup-id))
-      (ext:start)
-      (send-update 'initialized))
+      (ext:start))
 
 
     (define/public (get-setup)

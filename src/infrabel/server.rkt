@@ -206,6 +206,7 @@
            (log/i "Infrabel server stopped by user break"))
           (else
            (log/w "Infrabel server stopped by unkown cause:" exn)))
+    (sync (thread-dead-evt updater-thread))
     (tcp-close listener)
     (kill-thread master-thread))
 
@@ -213,10 +214,11 @@
   (define (repl)
     (displayln "Enter 'exit' to stop server.")
     (display "> ")
-    (if (string=? (read-line) "exit")
-      (stop 'request)
-      (begin (displayln "Command not recognized.")
-             (repl))))
+    (let ((input (read-line)))
+      (if (string=? input "exit")
+        (stop 'request)
+        (begin (display (format "Command not recognized:~a~%" input))
+               (repl)))))
 
   (with-handlers
     ((exn? stop))
@@ -224,13 +226,7 @@
     (when setup
       (send infrabel initialize setup))
 
-    (display (format "Server accepting TCP connections on port ~a.~%" port))
-    (thread repl)
     (set! updater-thread (thread updater))
-
-    ; Blocks until infrabel is initialized
-    (let ((update (sync (send infrabel get-update))))
-      (case update
-        (((initialized)) (log/i "Infrabel initialized"))
-        (else (log/w "Expected '(initialized), but received:" update))))))
+    (display (format "Server accepting TCP connections on port ~a.~%" port))
+    (repl)))
 
