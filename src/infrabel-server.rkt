@@ -28,7 +28,7 @@
   "usage: infrabel-server [-p | --port NUM]
                        [-h | --host local|rpi]
                        [-s | --setup NAME|list]
-                       [-l | --log info|debug|warning]\n")
+                       [-l | --log info|debug|warning|none]\n")
 
 ;; Print help string and exit
 (define (help out)
@@ -66,7 +66,7 @@
            (set! i (add1 i))
            (let ((level (string->symbol (vector-ref args i))))
              (case level
-               ((debug info warning)
+               ((debug info warning none)
                 (set! log-level level))
                (else
                 (eprintf "Log level must be 'info', 'debug' or 'warning'~%")))))

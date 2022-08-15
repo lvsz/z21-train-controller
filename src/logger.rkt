@@ -81,7 +81,7 @@
        (log/w "Logger receiver received unkown message: " datum)))
     (logging))
 
-  (when level
+  (unless (eq? level 'none)
     (unless (directory-exists? log-directory)
       (make-directory log-directory))
     (if logger-thread

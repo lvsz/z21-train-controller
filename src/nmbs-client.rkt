@@ -20,7 +20,7 @@
   "usage: nmbs-client [-s | --setup NAME|list]
                    [-p | --port NUM]
                    [-h | --host HOSTNAME]
-                   [-l | --log info|debug|warning]
+                   [-l | --log info|debug|warning|none]
                    [--solo]\n")
 
 ;; Print help string and exit
@@ -75,7 +75,7 @@
            (set! i (add1 i))
            (let ((level (string->symbol (vector-ref args i))))
              (case level
-               ((debug info warning)
+               ((debug info warning none)
                 (set! log-level level))
                (else
                 (eprintf "Log level must be 'info', 'debug' or 'warning'~%")))))
