@@ -73,88 +73,81 @@
       (check-eq? (send b-1011 from b-1112)
                  b-910)
       (check-false (send t-51 from b-78)
-                   "Return #f when tracks don't connect"))))
-
-
-(define block-tests
-  (test-suite
-    "Tests for d-block% in tracks.rkt"
-    (test-case
-      "Detection blocks can update their status and that of any connected block"
-      (check-eq? (send t-23 get-status)
-                 'green)
-      (send t-23 occupy)
-      (check-eq? (send t-23 get-status)
-                 'red)
-      (send b-67 occupy)
-      (check-eq? (send b-67 get-status)
-                 'red)
-      (check-eq? (send b-78 get-status)
-                 'orange
-                 "Block b-78 should turn orange when connected block b-67 turns red")
-      (send b-67 clear)
-      (check-eq? (send b-78 get-status)
-                 'green
-                 "Block b-78 should turn green when connected block b-67 turns green")
-      (send b-910 occupy)
-      (send b-1112 occupy)
-      (check-eq? (send b-1011 get-status)
-                 'orange
-                 "Block b-1011 has two occupied neighbours, it should be red")
-      (send b-1112 clear)
-      (check-eq? (send b-1011 get-status)
-                 'orange
-                 "Block b-1011 should remain orange after clearing one of its neighbours"))))
-
-
-(define switch-tests
-  (test-suite
-    "Tests for switch% in tracks.rkt"
-    (test-case
-      "A switch can change position to 1, 2, or one of its child tracks"
-      (check-eq? (begin (send s-51-56 set-position 2)
-                        (send s-51-56 get-position))
-                 2)
-      (check-eq? (begin (send s-51-56 set-position 1)
-                        (send s-51-56 get-position))
-                 1)
-      (check-eq? (begin (send s-51-56 set-position t-56)
-                        (send s-51-56 get-position))
-                 2)
-      (check-exn exn:fail? (lambda () (send s-51-56 set-position 0)))
-      (check-exn exn:fail? (lambda () (send s-51-56 set-position 3)))
-      (check-exn exn:fail? (lambda () (send s-51-56 set-position t-58))))
-    (test-case
-      "A parent switch's set-position also accepts its children's options"
-      (let ((child s-51-56)
-            (parent s-5156-58)
-            (old-pos t-51)
-            (new-pos t-56)
-            (par-pos t-58))
-        (send child set-position old-pos)
-        (send parent set-position par-pos)
-        (check-eq? (send child get-position) 1)
-        (check-eq? (send parent get-position) 2)
-        (send parent set-position new-pos)
-        (check-eq? (send child get-position) 2)
-        (check-eq? (send parent get-position) 2)))
-    (test-case
-      "Coming from a track, a switch can give its sub track options"
-      (check-equal? (list t-39)
-                    (send s-23-39 options-from b-910))
-      (check-equal? (set t-23 t-39)
-                    (list->set (send s-23-39 options-from t-34)))
-      (check-equal? (set t-51 t-56)
-                    (list->set (send s-51-56 options-from t-45)))
-      (check-equal? (set t-51 t-56 t-58)
-                    (list->set (send s-5156-58 options-from t-45))))))
+                   "Return #f when tracks don't connect"))
+    (test-suite
+      "Tests for d-block% in tracks.rkt"
+      (test-case
+        "Detection blocks can update their status and that of a connected block"
+        (check-eq? 'green (send t-23 get-status))
+        (send t-23 occupy)
+        (check-eq? 'red (send t-23 get-status))
+        (send b-67 occupy)
+        (check-eq? 'red (send b-67 get-status))
+        (check-eq?
+          (send b-78 get-status)
+          'orange
+          "b-78 should turn orange when connected block b-67 turns red")
+        (send b-67 clear)
+        (check-eq?
+          (send b-78 get-status)
+          'green
+          "b-78 should turn green when connected block b-67 turns green")
+        (send b-910 occupy)
+        (send b-1112 occupy)
+        (check-eq?
+          (send b-1011 get-status)
+          'orange
+          "b-1011 has two occupied neighbours, it should be red")
+        (send b-1112 clear)
+        (check-eq?
+          (send b-1011 get-status)
+          'orange
+          "b-1011 should remain orange after clearing one of its neighbours")))
+    (test-suite
+      "Tests for switch% in tracks.rkt"
+      (test-case
+        "A switch can change position to 1, 2, or one of its child tracks"
+        (check-eq? (begin (send s-51-56 set-position 2)
+                          (send s-51-56 get-position))
+                   2)
+        (check-eq? (begin (send s-51-56 set-position 1)
+                          (send s-51-56 get-position))
+                   1)
+        (check-eq? (begin (send s-51-56 set-position t-56)
+                          (send s-51-56 get-position))
+                   2)
+        (check-exn exn:fail? (lambda () (send s-51-56 set-position 0)))
+        (check-exn exn:fail? (lambda () (send s-51-56 set-position 3)))
+        (check-exn exn:fail? (lambda () (send s-51-56 set-position t-58))))
+      (test-case
+        "A parent switch's set-position also accepts its children's options"
+        (let ((child s-51-56)
+              (parent s-5156-58)
+              (old-pos t-51)
+              (new-pos t-56)
+              (par-pos t-58))
+          (send child set-position old-pos)
+          (send parent set-position par-pos)
+          (check-eq? (send child get-position) 1)
+          (check-eq? (send parent get-position) 2)
+          (send parent set-position new-pos)
+          (check-eq? (send child get-position) 2)
+          (check-eq? (send parent get-position) 2)))
+      (test-case
+        "Coming from a track, a switch can give its sub track options"
+        (check-equal? (list t-39)
+                      (send s-23-39 options-from b-910))
+        (check-equal? (set t-23 t-39)
+                      (list->set (send s-23-39 options-from t-34)))
+        (check-equal? (set t-51 t-56)
+                      (list->set (send s-51-56 options-from t-45)))
+        (check-equal? (set t-51 t-56 t-58)
+                      (list->set (send s-5156-58 options-from t-45)))))))
 
 
 (define (run)
     (run-tests node-tests)
-    (run-tests track-tests)
-    (run-tests block-tests)
-    (run-tests switch-tests))
+    (run-tests track-tests))
 
 ;; Doesn't run when imported as a module elsewhere
 (module* main #f
