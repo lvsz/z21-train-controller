@@ -1,24 +1,21 @@
 #lang racket/base
 
+(provide run)
+
 (require racket/class
          "infrabel/infrabel.rkt"
          "infrabel/server.rkt"
          "railway/setup.rkt"
-         "logger.rkt")
-
-;; 'localhost' confiuguration file
-(define local-config "resources/tcp/localhost.txt")
-
-;; 'raspberry pi' confiuguration file
-(define rpi-config   "resources/tcp/raspberrypi.txt")
+         "logger.rkt"
+         "resources.rkt")
 
 ;; Config that gets used when no other is specified
 (define default-config local-config)
 
 ;; Print setup names
 (define (display-setups out)
-  (fprintf out "setups: ~a~%" (car setups-ids))
-  (for ((s (in-list (cdr setups-ids))))
+  (fprintf out "setups: ~a~%" (car setup-ids))
+  (for ((s (in-list (cdr setup-ids))))
     (fprintf out "        ~a~%" s)))
 
 ;; Get port number from configuration file
@@ -31,7 +28,7 @@
   "usage: run-nmbs [-p | --port NUM]
                 [-h | --host local|rpi]
                 [-s | --setup NAME|list]
-                [-l | --log info|debug]\n")
+                [-l | --log info|debug|warning]\n")
 
 ;; Print help string and exit
 (define (help out)
@@ -69,16 +66,17 @@
            (set! i (add1 i))
            (let ((level (string->symbol (vector-ref args i))))
              (case level
-               ((debug info)
+               ((debug info warning)
                 (set! log-level level))
-               (else (eprintf "Log level must be 'info' or 'debug'~%")))))
+               (else
+                (eprintf "Log level must be 'info', 'debug' or 'warning'~%")))))
           ((--setup -s)
            (set! i (add1 i))
            (let ((arg (string->symbol (vector-ref args i))))
              (cond ((eq? arg 'list)
                     (display-setups (current-output-port))
                     (exit))
-                   ((member arg setups)
+                   ((member arg setup-ids)
                     (set! setup arg))
                    (else (eprintf "Invalid setup: ~a~%" arg)
                          (display-setups (current-error-port))))))
@@ -94,10 +92,11 @@
                              ((localhost local) local-config)
                              ((raspberrypi rpi) rpi-config)
                              (else              default-config)))))
+
     (let ((infrabel (new infrabel% (log-level log-level))))
       (void (start-server port #:infrabel infrabel #:setup setup)))))
 
 ;; Doesn't run when imported as a module elsewhere
 (module* main #f
-  (run-server))
+  (run))
 

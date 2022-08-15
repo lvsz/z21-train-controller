@@ -12,7 +12,7 @@
 ;; Print setup names
 (define (display-setups out)
   (fprintf out "setups: ~a~%" (car setup-ids))
-  (for ((s (in-list (cdr setups-ids))))
+  (for ((s (in-list (cdr setup-ids))))
     (fprintf out "        ~a~%" s)))
 
 ;; Text to display for command line usage
@@ -20,7 +20,7 @@
   "usage: run-nmbs [-s | --setup NAME|list]
                 [-p | --port NUM]
                 [-h | --host HOSTNAME]
-                [-l | --log info|debug]
+                [-l | --log info|debug|warning]
                 [--solo]\n")
 
 ;; Print help string and exit
@@ -50,7 +50,7 @@
              (cond ((eq? arg 'list)
                     (display-setups (current-output-port))
                     (exit))
-                   ((member arg setups-ids)
+                   ((member arg setup-ids)
                     (set! setup arg))
                    (else (eprintf "Invalid setup: ~a~%" arg)
                          (display-setups (current-error-port))))))
@@ -75,9 +75,10 @@
            (set! i (add1 i))
            (let ((level (string->symbol (vector-ref args i))))
              (case level
-               ((debug info)
+               ((debug info warning)
                 (set! log-level level))
-               (else (eprintf "Log level must be 'info' or 'debug'~%")))))
+               (else
+                (eprintf "Log level must be 'info', 'debug' or 'warning'~%")))))
           ((--solo)
            (set! solo #t))
           ((--help help)
