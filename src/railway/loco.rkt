@@ -20,7 +20,7 @@
     (define/public (get-location)
       current-track)
 
-    (define on-d-block? #f)
+    (define on-d-block? (d-block? current-track))
 
     (define/public (update-location new-track (new-prev-track current-track))
       (set! on-d-block? (d-block? new-track))
