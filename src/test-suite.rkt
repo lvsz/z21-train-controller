@@ -6,6 +6,6 @@
          )
 
 (railway:run)
+(infrabel:run)
 ;(nmbs:run)
-;(infrabel:run)
 

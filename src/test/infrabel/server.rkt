@@ -67,7 +67,8 @@
     (test-case
       "Shouldn't have a setup before initialization"
       (check-false (begin (put 'get-setup)
-                          (get-return-value)))
+                          (get-return-value))))
+    (test-case
       "Should have a setup after initialization"
       (check-eq? (begin (put 'initialize setup)
                         (put 'start)
@@ -81,7 +82,7 @@
     #:before (lambda () (new-server! setup))
     #:after  (lambda () (close-server!))
     (test-case
-      "Should have a setup before initialization"
+      "Should have a setup"
       (check-eq? (begin (put 'get-setup)
                         (get-return-value))
                  setup))

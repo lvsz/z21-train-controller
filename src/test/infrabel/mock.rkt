@@ -29,7 +29,8 @@
 
     (define/public (initialize setup-id)
       (set! setup setup-id)
-      (set! railway (make-object railway% setup-id)))
+      (set! railway (make-object railway% setup-id))
+      (send-update 'initialized))
 
     (define/public (get-setup)
       setup)
