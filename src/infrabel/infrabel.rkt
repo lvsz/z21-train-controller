@@ -20,6 +20,7 @@
     (super-new)
 
     (start-logger log-level)
+    (log/d "infrabel% instantiated")
 
     (define railway #f)
 
@@ -78,8 +79,8 @@
         (z21-mode!)
         (simulation-mode! setup-id))
       (set! railway (make-object railway% setup-id))
-      (ext:start))
-
+      (ext:start)
+      (send-update 'initialized))
 
     (define/public (get-setup)
       setup)

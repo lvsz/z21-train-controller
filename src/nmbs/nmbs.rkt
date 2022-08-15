@@ -23,6 +23,8 @@
     (init-field infrabel)
     (super-new)
 
+    (define main-thread (current-thread))
+
     (define railway #f)
 
     ; List of functions to be called when a switch changes
@@ -215,19 +217,20 @@
            (notify-d-block-listeners (send (send railway get-track id) occupy)))
           ((list 'd-block id 'clear) ; Infrabel sent d-block status update
            (notify-d-block-listeners (send (send railway get-track id) clear)))
-          ((list 'kill)
-           (log/w "Infrabel server shut down")
+          ((list 'kill msg)
+           (log/i "Disconnected server:" msg)
            (_stop))
+          ((list 'initialized)
+           (log/i "Infrabel initialized"))
           (_ (log/w "Unrecognized update format:" update))))
       (get-updates))
 
     (define (_stop)
       (log/i "Shutting down nmbs")
-      (kill-thread (current-thread)))
+      (kill-thread main-thread))
 
     (define/public (stop)
-      (send infrabel stop)
-      (_stop))
+      (send infrabel stop))
 
     (define update-thread #f)
 

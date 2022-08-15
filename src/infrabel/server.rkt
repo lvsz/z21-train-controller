@@ -21,7 +21,7 @@
 ;; Receive and log message
 (define (input-from input)
   (let ((msg (read input)))
-    (log/d (format "received \"~a\"" msg))
+    (log/d (format "Received \"~a\"" msg))
     msg))
 
 ;; Reply and log message
@@ -50,7 +50,6 @@
     (define locos (mutable-set))
 
     (define (stop msg)
-      (kill-thread client-thread)
       (case msg
         ((disconnect request)
          (for ((loco (in-set locos)))
@@ -61,7 +60,8 @@
          (thread-send parent-thread 'kill)))
       (tcp-abandon-port tcp-in)
       (tcp-abandon-port tcp-out)
-      (log/i "Connection with client ended:" msg))
+      (log/i "Connection with client ended:" msg)
+      (kill-thread client-thread))
 
     (define (tcp-handler msg)
       (define-syntax reply
@@ -210,8 +210,8 @@
            (log/i "Infrabel server stopped by user break"))
           (else
            (log/w "Infrabel server stopped by unkown cause:" exn)))
-    (sync (thread-dead-evt updater-thread))
-    (tcp-close listener)
+    (when (sync/timeout 1 (thread-dead-evt updater-thread))
+      (tcp-close listener))
     (kill-thread master-thread))
 
   ;; A "REPL" tht only accepts the 'exit' comand
@@ -232,5 +232,11 @@
 
     (set! updater-thread (thread updater))
     (display (format "Server accepting TCP connections on port ~a.~%" port))
-    (repl)))
+    (thread repl)
+
+    (let ((update (sync (send infrabel get-update))))
+      (case update
+        (((initialized)) (log/i "Infrabel initialized"))
+        (else (log/w "Expected '(initialized), but received:" update)))
+      (send infrabel start))))
 

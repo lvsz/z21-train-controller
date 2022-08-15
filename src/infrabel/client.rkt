@@ -103,23 +103,24 @@
           ((message id 'update body)
            (send-update (cons id body)))
           ; Server severed connection
-          ((or (? eof-object?) (message _ 'kill _))
+          ((or (? eof-object?) (message 'kill _ _))
            (log/w "Disconnected from server with message:" msg)
-           (send-update '(kill)))
-          (_ (log/w "Cannot not recognize received update:" msg))))
+           (send-update '(kill unexpected)))
+          (_ (log/w "Cannot recognize received update:" msg))))
       (define (request req)
         (let* ((id (gen-id))
                (msg (message id (request-header req) (request-body req))))
           (log/d "Sending server request" msg)
           (write msg tcp-out)
-          (when (request-response req)
-            (hash-set! pending id (request-response req)))))
+          (cond ((request-response req)
+                 (hash-set! pending id (request-response req)))
+                ((eq? 'stop (request-header req))
+                 (send-update '(kill expected))))))
       (with-handlers
         ((exn:fail:network? (lambda (exn)
                               (log/w "Network error:" exn)
                               (handle-message eof))))
-        ; Looping part of `client-loop`
-        (let loop ()
+        (let loop () ; Looping part of `client-loop`
           ; Blocks until server sent something or thread received something
           (match (sync (choice-evt tcp-in (thread-receive-evt)))
             ; When a TCP port synchronizes, it returns itself
