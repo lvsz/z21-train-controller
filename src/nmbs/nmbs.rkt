@@ -99,20 +99,25 @@
 
     ; Change the speed, notifying any listeners but not infrabel
     (define (_set-loco-speed id speed)
-      (let ((speed (abs speed)))
-        (for ((notify (in-list (hash-ref loco-speed-listeners id))))
-          (notify speed))
-        (send infrabel set-loco-speed id
-              (* (send (get-loco id) get-direction) speed))))
+      (send (get-loco id) set-speed speed)
+      (for ((notify (in-list (hash-ref loco-speed-listeners id))))
+        (notify speed)))
 
     ; Change the speed, notifying any listeners and infrabel
     (define/public (set-loco-speed id speed)
-      (send infrabel set-loco-speed id speed)
+      (send infrabel
+            set-loco-speed
+            id
+            (* (send (get-loco id) get-direction) speed))
       (_set-loco-speed id speed))
 
     (define/public (change-loco-direction id)
-      (send infrabel set-loco-speed id (- (send infrabel get-loco-speed id)))
-      (send (get-loco id) change-direction))
+      (let ((loco (get-loco id)))
+        (send loco change-direction)
+        (send infrabel
+              set-loco-speed
+              id
+              (* (send loco get-direction) (send loco get-speed)))))
 
     (define/public (add-loco spot-id)
       (let* ((spot (hash-ref starting-spots spot-id))
@@ -198,7 +203,14 @@
           ((list 'switch id pos) ; Infrabel sent switch position update
            (_set-switch-position id pos))
           ((list 'loco-speed id speed) ; Infrabel sent loco speed update
-           (_set-loco-speed id speed))
+           (let* ((loco      (get-loco id))
+                  (direction (send loco get-direction)))
+             ; Change direction if loco stopped while going backwards
+             ; Or when new speed has a different sign than direction
+             (when (or (and (zero? speed) (negative? direction))
+                       (negative? (* speed direction)))
+               (send loco change-direction)))
+           (_set-loco-speed id (abs speed)))
           ((list 'd-block id 'occupy) ; Infrabel sent d-block status update
            (notify-d-block-listeners (send (send railway get-track id) occupy)))
           ((list 'd-block id 'clear) ; Infrabel sent d-block status update
