@@ -52,6 +52,10 @@
     (define/public (set-loco-speed id speed)
       (hash-set! loco-speeds id speed))
 
+    (define/public (test-set-loco-speed id speed)
+      (set-loco-speed id speed)
+      (send-update 'loco-speed id speed))
+
     (define/public (get-loco-d-block id)
       (let ((loco (send railway get-loco id)))
         (and loco
@@ -63,6 +67,10 @@
 
     (define/public (set-switch-position id p)
       (send (send railway get-track id) set-position p))
+
+    (define/public (test-set-switch-position id p)
+      (set-switch-position id p)
+      (send-update 'switch id p))
 
     (define/public (get-switch-ids)
       (get-ids (send railway get-switches)))

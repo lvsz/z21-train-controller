@@ -66,15 +66,15 @@
     #:after  (lambda () (close-server!))
     (test-case
       "Shouldn't have a setup before initialization"
-      (check-false (begin (put 'get-setup)
-                          (get-return-value))))
+      (put 'get-setup)
+      (check-false (get-return-value)))
     (test-case
       "Should have a setup after initialization"
-      (check-eq? (begin (put 'initialize setup)
-                        (put 'start)
-                        (put 'get-setup)
-                        (get-return-value))
-                 setup))))
+      (put 'initialize setup)
+      (put 'start)
+      (put 'get-setup)
+      (check-eq?  (get-return-value) setup))))
+
 
 (define with-setup-tests
   (test-suite
@@ -90,9 +90,9 @@
       "Testing switches"
       (test-case
         "Switch should change position"
+        (put 'get-switch-position 'S-5)
         (check-not-eq?
-          (let ((pos (begin (put 'get-switch-position 'S-5)
-                            (get-return-value))))
+          (let ((pos (get-return-value)))
             (put 'set-switch-position 'S-5 (add1 (modulo pos 2)))
             pos)
           (begin (put 'get-switch-position 'S-5)
@@ -101,29 +101,26 @@
       "Testing locos"
       (test-case
         "Should add loco"
-        (check-eq? (begin (put 'add-loco 'L1 '1-4 '1-5)
-                          (put 'get-loco-d-block 'L1)
-                          (get-return-value))
-                   '1-5))
+        (put 'add-loco 'L1 '1-4 '1-5)
+        (put 'get-loco-d-block 'L1)
+        (check-eq? (get-return-value) '1-5))
       (test-case
         "Should change loco speed"
-        (check-eq? (begin (put 'set-loco-speed 'L1 50)
-                          (put 'get-loco-speed 'L1)
-                          (get-return-value))
-                   50))
+        (put 'set-loco-speed 'L1 50)
+        (put 'get-loco-speed 'L1)
+        (check-eq? (get-return-value) 50))
       (test-case
         "Should remove loco"
-        (check-false (begin (put 'remove-loco 'L1)
-                            (put 'get-loco-d-block 'L1)
-                            (get-return-value)))))
+        (put 'remove-loco 'L1)
+        (put 'get-loco-d-block 'L1)
+        (check-false (get-return-value))))
     (test-suite
       "Test update broadcast"
       (test-case
         "Should forward infrabel update"
-        (check-eq? (begin (async-channel-put (send infrabel get-update)
-                                             '(switch 'S-1 2))
-                          (message-header (get-message)))
-                   'update)))))
+        (async-channel-put (send infrabel get-update)
+                           '(switch 'S-1 2))
+        (check-eq? (message-header (get-message)) 'update)))))
 
 
 (define (run)
