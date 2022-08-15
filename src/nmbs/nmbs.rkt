@@ -240,7 +240,7 @@
 
     ; Calling this method will initialise the nmbs% instance
     ; and then start up the application, including GUI.
-    (define/public (start #:setup-id (setup-id #f) #:gui (gui #t))
+    (define/public (start #:setup-id (setup-id #f) #:gui? (gui? #t))
       (define (_start)
         (send infrabel start)
         (set! railway (make-object railway% setup-id))
@@ -253,7 +253,7 @@
         (for ((id (in-list (get-d-block-ids)))
               #:when (eq? 'red (send infrabel get-d-block-status id)))
           (send (get-track id) occupy))
-        (when gui
+        (when gui?
           (new window%
                (nmbs this)
                (atexit (lambda () (send this stop)))))
@@ -272,7 +272,7 @@
            (log/i "Starting using given setup:" setup-id)
            (_start))
           ; Else create window to select setup
-          (gui
+          (gui?
            (void (new setup-window%
                       (setups setup-ids)
                       (callback (lambda (id)
