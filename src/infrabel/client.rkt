@@ -1,13 +1,13 @@
 #lang racket/base
 
-(provide infrabel-client%)
+(provide infraclient%)
 
 (require racket/async-channel
          racket/class
          racket/match
          racket/tcp
          racket/os
-         "interface.rkt"
+         "infraface.rkt"
          "message.rkt"
          "../logger.rkt"
          "../resources.rkt")
@@ -68,8 +68,8 @@
 
 ;; For interchangeability purposes, this has the exact same interface
 ;; as the infrabel% class in infrabel.rkt
-(define infrabel-client%
-  (class* object% (infrabel-interface<%>)
+(define infraclient%
+  (class* object% (infraface<%>)
     (init-field (port #f) (host (gethostname)) (log-level 'warning))
     (super-new)
 

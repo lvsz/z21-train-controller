@@ -1,11 +1,11 @@
 #lang racket/base
 
-(provide infrabel-interface<%>)
+(provide infraface<%>)
 
 (require racket/class
          racket/contract/base)
 
-(define infrabel-interface<%>
+(define infraface<%>
   (interface ()
     (start (->m void?))
     (stop  (->m any))

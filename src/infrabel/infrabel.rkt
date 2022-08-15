@@ -5,7 +5,7 @@
 (require racket/async-channel
          racket/class
          racket/list
-         "interface.rkt"
+         "infraface.rkt"
          "../logger.rkt"
          "../railway/railway.rkt"
          (prefix-in z21: "../z21/interface.rkt")
@@ -15,7 +15,7 @@
 (define-loggers 'infrabel/infrabel log/w log/i log/d)
 
 (define infrabel%
-  (class* object% (infrabel-interface<%>)
+  (class* object% (infraface<%>)
     (init-field (log-level 'warning))
     (super-new)
 

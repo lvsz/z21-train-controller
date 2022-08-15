@@ -10,7 +10,6 @@
          racket/tcp
          racket/os
          "infrabel.rkt"
-         "interface.rkt"
          "message.rkt"
          "../logger.rkt")
 
