@@ -83,8 +83,6 @@
            (reply (send/apply infrabel get-loco-speed args)))
           ((set-loco-speed)
            (send/apply infrabel set-loco-speed args))
-          ((change-loco-direction)
-           (send/apply infrabel change-loco-direction args))
           ((get-loco-d-block)
            (reply (send/apply infrabel get-loco-d-block args)))
           ((get-switch-position)

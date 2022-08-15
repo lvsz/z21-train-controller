@@ -177,8 +177,6 @@
       (get 'get-loco-speed id))
     (define/public (set-loco-speed id speed)
       (put 'set-loco-speed id speed))
-    (define/public (change-loco-direction id)
-      (put 'change-loco-direction id))
     (define/public (get-loco-d-block id)
       (get 'get-loco-d-block id))
 
