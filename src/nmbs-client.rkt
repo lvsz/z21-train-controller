@@ -64,7 +64,7 @@
           ((--host -h)
            (set! i (add1 i))
            (when (= i (vector-length args))
-             (display help)
+             (help (current-output-port))
              (exit))
            (set! host (vector-ref args i)))
           ((--log -l)

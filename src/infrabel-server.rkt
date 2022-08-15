@@ -55,7 +55,7 @@
           ((--host -h)
            (set! i (add1 i))
            (when (= i (vector-length args))
-             (display help)
+             (help (current-output-port))
              (exit))
            (let ((h (string->symbol (vector-ref args i))))
              (case h
