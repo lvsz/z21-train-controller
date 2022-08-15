@@ -127,6 +127,7 @@
     (define/public (add-loco id prev curr)
       ; Blocks until get-loco-d-block returns
       (semaphore-wait loco-semaphore)
+      (log/i "Adding loco" id "on" curr "coming from" prev)
       (let((prev-track (get-track prev))
            (curr-track (get-track curr)))
         (ext:add-loco id prev curr)
@@ -138,6 +139,7 @@
     (define/public (remove-loco id)
       ; Blocks until get-loco-d-block returns
       (semaphore-wait loco-semaphore)
+      (log/i "Removing loco" id)
       (let ((d-block (send (send railway get-loco id) get-d-block)))
         (when d-block
           (clear d-block)))
@@ -146,10 +148,17 @@
       (semaphore-post loco-semaphore))
 
     (define/public (get-loco-speed id)
-      (ext:get-loco-speed id))
+      (semaphore-wait loco-semaphore)
+      (begin0 (if (send railway get-loco id)
+                (ext:get-loco-speed id)
+                0)
+              (semaphore-post loco-semaphore)))
 
     (define/public (set-loco-speed id speed)
-      (ext:set-loco-speed! id speed))
+      (semaphore-wait loco-semaphore)
+      (when (send railway get-loco id)
+        (ext:set-loco-speed! id speed))
+      (semaphore-post loco-semaphore))
 
     ; This procedure keeps track of a loco's movement
     ; It compares the detection blocks it has traversed
