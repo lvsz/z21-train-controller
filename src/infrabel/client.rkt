@@ -6,6 +6,7 @@
          racket/class
          racket/match
          racket/tcp
+         racket/os
          "interface.rkt"
          "message.rkt"
          "../logger.rkt"
@@ -35,7 +36,7 @@
 ;; Exits if it runs out of tries
 (define (quick-connect #:files (files tcp-files)
                        #:port  (port #f)
-                       #:host  (host "localhost")
+                       #:host  (host (gethostname))
                        #:tries (tries 5))
   (define (_connect port host cont)
     (with-handlers
@@ -69,7 +70,7 @@
 ;; as the infrabel% class in infrabel.rkt
 (define infrabel-client%
   (class* object% (infrabel-interface<%>)
-    (init-field (port #f) (host "localhost") (log-level 'warning))
+    (init-field (port #f) (host (gethostname)) (log-level 'warning))
     (super-new)
 
     (start-logger log-level)

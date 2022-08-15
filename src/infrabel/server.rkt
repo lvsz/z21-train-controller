@@ -8,6 +8,7 @@
          racket/match
          racket/set
          racket/tcp
+         racket/os
          "infrabel.rkt"
          "interface.rkt"
          "message.rkt"
@@ -145,6 +146,7 @@
 
 ;; Initialize everything and start the server
 (define (start-server port
+                      #:hostname  (host (gethostname))
                       #:infrabel  (infrabel #f)
                       #:setup     (setup #f)
                       #:log-level (log-level 'warning))
@@ -233,7 +235,8 @@
       (send infrabel initialize setup))
 
     (set! updater-thread (thread updater))
-    (display (format "Server accepting TCP connections on port ~a.~%" port))
+    (display
+      (format "Server accepting TCP connections on ~a@~a.~%" port host))
     (thread repl)
 
     (let ((update (sync (send infrabel get-update))))
