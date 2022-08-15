@@ -94,6 +94,8 @@
            (reply (send infrabel get-switch-ids)))
           ((get-d-block-ids)
            (reply (send infrabel get-d-block-ids)))
+          ((get-d-block-status)
+           (reply (send/apply infrabel get-d-block-status args)))
           ((get-setup)
            (reply (send infrabel get-setup)))
           ((initialize)

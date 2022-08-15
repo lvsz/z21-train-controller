@@ -78,6 +78,9 @@
     (define/public (get-d-block-ids)
       (get-ids (send railway get-d-blocks)))
 
+    (define/public (get-d-block-status id)
+      (send (send railway get-track id) get-status))
+
     (define update-channel (make-async-channel))
     (define (send-update tag . args)
       (async-channel-put update-channel (cons tag args)))

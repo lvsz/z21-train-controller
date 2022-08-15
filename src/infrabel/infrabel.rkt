@@ -191,6 +191,11 @@
                (semaphore-post loco-semaphore)
                new-db-id))))
 
+    (define/public (get-d-block-status id)
+      (let ((track (get-track id)))
+        (if (d-block? track)
+          (send track get-status)
+          (log/w "get-status: not a d-block:" track))))
     (define/public (get-d-block-ids)
       (ext:get-d-block-ids))
     (define/public (get-switch-ids)

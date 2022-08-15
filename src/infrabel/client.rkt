@@ -190,6 +190,8 @@
       (get 'get-switch-ids))
     (define/public (get-d-block-ids)
       (get 'get-d-block-ids))
+    (define/public (get-d-block-status id)
+      (get 'get-d-block-status id))
 
     (log/i "Connecting to server")
     (put 'connect)))
