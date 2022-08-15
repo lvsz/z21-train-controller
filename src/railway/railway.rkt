@@ -21,9 +21,9 @@
 
 
 ;; Helper syntax to retrieve an objects id
-(define-syntax (get-id stx)
-  (syntax-case stx ()
-    ((_ obj) #'(send obj get-id))))
+(define-syntax get-id
+  (syntax-rules ()
+    ((_ obj) (send obj get-id))))
 
 ;; Helper function to turn a list of objects into a list of ids
 (define (get-ids lst)

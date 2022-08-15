@@ -29,13 +29,13 @@
 
 ;; Set 3 identifiers to loggers to loggers for different levels
 ;; The levels are 'warning, 'info and 'debug respectively
-(define-syntax (define-loggers stx)
-  (syntax-case stx ()
+(define-syntax define-loggers
+  (syntax-rules ()
     ((_ topic log-w log-i log-d)
-     #'(begin
-         (define log-w (_make-logger 'warning topic))
-         (define log-i (_make-logger 'info    topic))
-         (define log-d (_make-logger 'debug   topic))))))
+     (begin
+       (define log-w (_make-logger 'warning topic))
+       (define log-i (_make-logger 'info    topic))
+       (define log-d (_make-logger 'debug   topic))))))
 
 
 ;; Loggers for logging the logger
