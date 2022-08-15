@@ -228,7 +228,21 @@
                (+ S-2-position 1))
               ((eq? id 'S-3)
                (+ S-3-position 1))
-              (else (super get-switch-position id))))))
+              (else (super get-switch-position id))))
+
+      (define/override (find-segment id)
+        (case id
+          ((S-2 S-3) (find-segment 'S-2-3))
+          (else (findf (lambda (segment)
+                         (eq? (get-field id segment) id))
+                       segments))))
+
+      (define/override (find-switch id)
+        (case id
+          ((S-2 S-3) (find-switch 'S-2-3))
+          (else (findf (lambda (switch)
+                         (eq? (get-field id switch) id))
+                       switches))))))
 
   (define SEGMENTS
     (list 1-1  1-2   1-3  1-4  1-5  1-6  1-7  1-8
