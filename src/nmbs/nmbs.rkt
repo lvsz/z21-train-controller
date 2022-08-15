@@ -102,7 +102,7 @@
     ; Change the speed, notifying any listeners but not infrabel
     (define (_set-loco-speed id speed)
       (send (get-loco id) set-speed speed)
-      (for ((notify (in-list (hash-ref loco-speed-listeners id))))
+      (for ((notify (in-list (hash-ref loco-speed-listeners id '()))))
         (notify speed)))
 
     ; Change the speed, notifying any listeners and infrabel
@@ -154,10 +154,11 @@
               update-location
               (send railway get-track curr-id))))
 
-    ; Get hash of spots where a new loco can be added,
-    ; to be a valid spot, a detection block is needed whose local id and
-    ; that of a connected segment match those imported through infrabel.
+    ; Get hash of spots where a new loco can be added
+    ; Any detection block connected to either another block or a switch is valid
     (define starting-spots #f)
+
+    ; Return a list of detection block ids that can be used to place a loco
     (define/public (get-starting-spots)
       (if starting-spots
         (hash-keys starting-spots)
@@ -236,7 +237,7 @@
 
     ; Calling this method will initialise the nmbs% instance
     ; and then start up the application, including GUI.
-    (define/public (start #:setup-id (setup-id #f))
+    (define/public (start #:setup-id (setup-id #f) #:gui (gui #t))
       (define (_start)
         (send infrabel start)
         (set! railway (make-object railway% setup-id))
@@ -246,9 +247,10 @@
           (_set-switch-position
             switch-id
             (send infrabel get-switch-position switch-id)))
-        (new window%
-             (nmbs this)
-             (atexit (lambda () (send this stop))))
+        (when gui
+          (new window%
+               (nmbs this)
+               (atexit (lambda () (send this stop)))))
         (set! update-thread (thread get-updates)))
       ; If there's no setup yet, open the setup window.
       (let ((infra-setup (send infrabel get-setup)))
@@ -264,7 +266,7 @@
            (log/i "Starting using given setup:" setup-id)
            (_start))
           ; Else create window to select setup
-          (else
+          (gui
            (void (new setup-window%
                       (setups setup-ids)
                       (callback (lambda (id)
@@ -275,9 +277,9 @@
 
 
 ;; Simple struct that defines a spot where a locomotive can be added
-;; like in the simulator, it needs a track for the train to start on
-;; and a connected track to determine its direction
-;; only detection blocks are allowed as starting tracks
+;; It needs a track for the train to start on
+;; And a connected track to determine its direction
+;; Only detection blocks are allowed as starting tracks
 (struct starting-spot (previous current))
 
 (define (find-starting-spots nmbs railway)
