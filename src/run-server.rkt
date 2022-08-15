@@ -3,6 +3,7 @@
 (require racket/class
          "infrabel/infrabel.rkt"
          "infrabel/server.rkt"
+         "railway/setup.rkt"
          "logger.rkt")
 
 ;; 'localhost' confiuguration file
@@ -14,13 +15,10 @@
 ;; Config that gets used when no other is specified
 (define default-config local-config)
 
-;; List of setup names
-(define setups (map path->string (directory-list "resources/setups/")))
-
 ;; Print setup names
 (define (display-setups out)
-  (fprintf out "setups: ~a~%" (car setups))
-  (for ((s (in-list (cdr setups))))
+  (fprintf out "setups: ~a~%" (car setups-ids))
+  (for ((s (in-list (cdr setups-ids))))
     (fprintf out "        ~a~%" s)))
 
 ;; Get port number from configuration file
@@ -42,10 +40,10 @@
 
 
 ;; Run server, configuring it with given arguments
-(define (run-server #:host  (host #f)
-                    #:port  (port #f)
-                    #:log   (log-level 'warning)
-                    #:setup (setup #f))
+(define (run #:host      (host #f)
+             #:port      (port #f)
+             #:log-level (log-level 'warning)
+             #:setup     (setup #f))
   (let ((args (current-command-line-arguments)))
     (let loop ((i 0))
       (when (< i (vector-length args))
@@ -76,12 +74,12 @@
                (else (eprintf "Log level must be 'info' or 'debug'~%")))))
           ((--setup -s)
            (set! i (add1 i))
-           (let ((arg (vector-ref args i)))
-             (cond ((string=? arg "list")
+           (let ((arg (string->symbol (vector-ref args i))))
+             (cond ((eq? arg 'list)
                     (display-setups (current-output-port))
                     (exit))
                    ((member arg setups)
-                    (set! setup (string->symbol arg)))
+                    (set! setup arg))
                    (else (eprintf "Invalid setup: ~a~%" arg)
                          (display-setups (current-error-port))))))
           ((--help help)

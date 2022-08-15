@@ -1,20 +1,18 @@
 #lang racket/base
 
-(provide run-nmbs)
+(provide run)
 
 (require racket/class
          "logger.rkt"
          "nmbs/nmbs.rkt"
          "infrabel/client.rkt"
-         "infrabel/infrabel.rkt")
-
-;; List of setup names
-(define setups (map path->string (directory-list "resources/setups/")))
+         "infrabel/infrabel.rkt"
+         "railway/setup.rkt")
 
 ;; Print setup names
 (define (display-setups out)
-  (fprintf out "setups: ~a~%" (car setups))
-  (for ((s (in-list (cdr setups))))
+  (fprintf out "setups: ~a~%" (car setup-ids))
+  (for ((s (in-list (cdr setups-ids))))
     (fprintf out "        ~a~%" s)))
 
 ;; Text to display for command line usage
@@ -37,23 +35,23 @@
 ;;     the server can be either localhost or raspberypi
 ;;   if #:setup = #f : gives the user a selection screen to pick a setup
 ;;   otherwise it will skip that step (assuming the given setup exists)
-(define (run-nmbs #:setup (setup #f)
-                  #:port  (port #f)
-                  #:host  (host "localhost")
-                  #:solo? (solo #f)
-                  #:log   (log-level 'warning))
+(define (run #:setup     (setup #f)
+             #:port      (port #f)
+             #:host      (host "localhost")
+             #:solo?     (solo #f)
+             #:log-level (log-level 'warning))
   (let ((args (current-command-line-arguments)))
     (let loop ((i 0))
       (when (< i (vector-length args))
         (case (string->symbol (vector-ref args i))
           ((--setup -s)
            (set! i (add1 i))
-           (let ((arg (vector-ref args i)))
-             (cond ((string=? arg "list")
+           (let ((arg (string->symbol (vector-ref args i))))
+             (cond ((eq? arg 'list)
                     (display-setups (current-output-port))
                     (exit))
-                   ((member arg setups)
-                    (set! setup (string->symbol arg)))
+                   ((member arg setups-ids)
+                    (set! setup arg))
                    (else (eprintf "Invalid setup: ~a~%" arg)
                          (display-setups (current-error-port))))))
           ((--port -p)
@@ -101,5 +99,5 @@
 
 ;; Doesn't run when imported as a module elsewhere
 (module* main #f
-  (void (run-nmbs)))
+  (void (run)))
 
