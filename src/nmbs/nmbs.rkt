@@ -250,13 +250,13 @@
           (_set-switch-position
             switch-id
             (send infrabel get-switch-position switch-id)))
-        (for ((id (in-list (get-d-block-ids)))
-              #:when (eq? 'red (send infrabel get-d-block-status id)))
-          (send (get-track id) occupy))
         (when gui
           (new window%
                (nmbs this)
                (atexit (lambda () (send this stop)))))
+        (for ((id (in-list (get-d-block-ids)))
+              #:when (eq? 'red (send infrabel get-d-block-status id)))
+          (notify-d-block-listeners (send (get-track id) occupy)))
         (set! update-thread (thread get-updates)))
       ; If there's no setup yet, open the setup window.
       (let ((infra-setup (send infrabel get-setup)))
