@@ -4,11 +4,11 @@
 
 (require racket/class
          racket/async-channel
-         "../../infrabel/interface.rkt"
+         "../../infrabel/infraface.rkt"
          "../../railway/railway.rkt")
 
 (define infrabel-mock%
-  (class* object% (infrabel-interface<%>)
+  (class* object% (infraface<%>)
     (super-new)
 
     (define running #f)

@@ -1,12 +1,13 @@
 #lang racket/base
 
-(provide infrabel-client%)
+(provide infraclient%)
 
 (require racket/async-channel
          racket/class
          racket/match
          racket/tcp
-         "interface.rkt"
+         racket/os
+         "infraface.rkt"
          "message.rkt"
          "../logger.rkt"
          "../resources.rkt")
@@ -35,7 +36,7 @@
 ;; Exits if it runs out of tries
 (define (quick-connect #:files (files tcp-files)
                        #:port  (port #f)
-                       #:host  (host "localhost")
+                       #:host  (host (gethostname))
                        #:tries (tries 5))
   (define (_connect port host cont)
     (with-handlers
@@ -67,9 +68,9 @@
 
 ;; For interchangeability purposes, this has the exact same interface
 ;; as the infrabel% class in infrabel.rkt
-(define infrabel-client%
-  (class* object% (infrabel-interface<%>)
-    (init-field (port #f) (host "localhost") (log-level 'warning))
+(define infraclient%
+  (class* object% (infraface<%>)
+    (init-field (port #f) (host (gethostname)) (log-level 'warning))
     (super-new)
 
     (start-logger log-level)
@@ -176,8 +177,6 @@
       (get 'get-loco-speed id))
     (define/public (set-loco-speed id speed)
       (put 'set-loco-speed id speed))
-    (define/public (change-loco-direction id)
-      (put 'change-loco-direction id))
     (define/public (get-loco-d-block id)
       (get 'get-loco-d-block id))
 

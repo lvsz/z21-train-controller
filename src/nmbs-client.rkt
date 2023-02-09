@@ -86,7 +86,7 @@
   (define infrabel
     (if solo
       (new infrabel% (log-level log-level))
-      (new infrabel-client% (port port) (host host) (log-level log-level))))
+      (new infraclient% (port port) (host host) (log-level log-level))))
 
   (define nmbs
     (new nmbs% (infrabel infrabel)))

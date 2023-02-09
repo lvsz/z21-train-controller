@@ -8,8 +8,8 @@
          racket/match
          racket/set
          racket/tcp
+         racket/os
          "infrabel.rkt"
-         "interface.rkt"
          "message.rkt"
          "../logger.rkt")
 
@@ -82,8 +82,6 @@
            (reply (send/apply infrabel get-loco-speed args)))
           ((set-loco-speed)
            (send/apply infrabel set-loco-speed args))
-          ((change-loco-direction)
-           (send/apply infrabel change-loco-direction args))
           ((get-loco-d-block)
            (reply (send/apply infrabel get-loco-d-block args)))
           ((get-switch-position)
@@ -145,6 +143,7 @@
 
 ;; Initialize everything and start the server
 (define (start-server port
+                      #:hostname  (host (gethostname))
                       #:infrabel  (infrabel #f)
                       #:setup     (setup #f)
                       #:log-level (log-level 'warning))
@@ -233,7 +232,8 @@
       (send infrabel initialize setup))
 
     (set! updater-thread (thread updater))
-    (display (format "Server accepting TCP connections on port ~a.~%" port))
+    (display
+      (format "Server accepting TCP connections on ~a@~a.~%" port host))
     (thread repl)
 
     (let ((update (sync (send infrabel get-update))))

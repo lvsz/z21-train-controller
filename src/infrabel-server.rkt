@@ -3,6 +3,7 @@
 (provide run)
 
 (require racket/class
+         racket/os
          "infrabel/infrabel.rkt"
          "infrabel/server.rkt"
          "railway/setup.rkt"
@@ -26,7 +27,7 @@
 ;; Text to display for command line usage
 (define help-string
   "usage: infrabel-server [-p | --port NUM]
-                       [-h | --host local|rpi]
+                       [-h | --host local|remote]
                        [-s | --setup NAME|list]
                        [-l | --log info|debug|warning|none]\n")
 
@@ -37,7 +38,7 @@
 
 
 ;; Run server, configuring it with given arguments
-(define (run #:host      (host #f)
+(define (run #:hostname  (host (gethostname))
              #:port      (port #f)
              #:log-level (log-level 'warning)
              #:setup     (setup #f))
@@ -59,8 +60,10 @@
              (exit))
            (let ((h (string->symbol (vector-ref args i))))
              (case h
-               ((localhost local raspberrypi rpi)
-                (set! host h))
+               ((localhost local)
+                (set! host "localhost"))
+               ((remote)
+                (set! host (gethostname)))
                (else (eprintf "Invalid host, try 'local' or 'rpi'~%")))))
           ((--log -l)
            (set! i (add1 i))
@@ -89,12 +92,14 @@
     ; Get default port if none was set by host or port flag
     (unless port
       (set! port (get-port (case host
-                             ((localhost local) local-config)
-                             ((raspberrypi rpi) rpi-config)
-                             (else              default-config)))))
+                             (("localhost") local-config)
+                             (else          default-config)))))
 
     (let ((infrabel (new infrabel% (log-level log-level))))
-      (void (start-server port #:infrabel infrabel #:setup setup)))))
+      (void (start-server port
+                          #:hostname host
+                          #:infrabel infrabel
+                          #:setup setup)))))
 
 ;; Doesn't run when imported as a module elsewhere
 (module* main #f

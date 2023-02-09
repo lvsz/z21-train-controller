@@ -32,7 +32,7 @@
               (set! loco #f))
     (test-case
       "Should get the correct setup on start"
-      (send nmbs start #:setup-id setup #:gui #f)
+      (send nmbs start #:setup-id setup #:gui? #f)
       (set! railway (send infrabel test-railway))
       (check memq 'S-16 (send nmbs get-switch-ids))
       (check memq '2-8 (send nmbs get-d-block-ids)))

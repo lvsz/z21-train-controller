@@ -3,7 +3,7 @@
 (provide setup-location
          tcp-files
          local-config
-         rpi-config)
+         default-config)
 
 (define source (let-values (((root dir b) (split-path (current-directory))))
                  (if (equal? dir (string->path "src"))
@@ -14,5 +14,5 @@
 
 (define tcp-files (directory-list (build-path source "tcp") #:build? #t))
 (define local-config (build-path source "tcp/localhost.txt"))
-(define rpi-config   (build-path source "tcp/raspberrypi.txt"))
+(define default-config   (build-path source "tcp/raspberrypi.txt"))
 
